@@ -4,7 +4,13 @@ import scala.io.Source
 import java.io.FileReader
 import scala.util.parsing.combinator.JavaTokenParsers
 
-case class Phase(name: String, attributes: List[String])
+class Attribute
+case class Phase(name: String, attributes: List[Attribute])
+case class Command(cmdLine: String) extends Attribute
+case class Description(value: String) extends Attribute
+case class Depends(phases: List[Phase]) extends Attribute
+
+case class Commands(commands: List[Command]) extends Attribute
 
 class ConfigParser extends JavaTokenParsers {
 
@@ -12,15 +18,22 @@ class ConfigParser extends JavaTokenParsers {
 
   override val whiteSpace = """[ \t\n]+""".r
 
-  def str = ("""([^\n\r])+""").r
+  def str = ("""([^\n\r])+""").r ^^ { s => s.trim()
+  }
 
   def phaseName = ("clean" | "compile" | "package" | "run") <~ ":"
 
-  def description = "description" ~ ":" ~> str
+  def description = "description" ~ ":" ~> str ^^ { value =>
+    Description(value)
+  }
 
-  def dependsOn = "depends on" ~ ":" ~> str
+  def dependsOn = "depends on" ~ ":" ~> rep1(str, ",") ^^ { values =>
+    Depends(values.map(Phase(_, Nil)))
+  }
 
-  def commands = "commands" ~ ":" ~> str
+  def commands = "commands" ~ ":" ~> rep1(str, eol) ^^ { cmdLines =>
+    Commands(cmdLines.map(Command(_)))
+  }
 
   def attribute = description | dependsOn | commands
 
@@ -34,7 +47,7 @@ class ConfigParser extends JavaTokenParsers {
   def parse(configFile: String = "conf/default.conf") = {
     parseAll(config, new FileReader(configFile)) match {
       case Success(phases, _) => phases
-      case ex @ _             => println(ex); List[Map[String, String]]()
+      case ex @ _             => println(ex); List[Phase]()
     }
   }
 }
