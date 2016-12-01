@@ -4,11 +4,14 @@ import scala.io.Source
 import java.io.FileReader
 import scala.util.parsing.combinator.JavaTokenParsers
 
+case class Phase(name: String, cmdLines: List[String], description: Option[String], dependsOn: List[DependantPhase])
+case class DependantPhase(name: String)
+
 class Attribute
-case class Phase(name: String, attributes: List[Attribute])
+
 case class Command(cmdLine: String) extends Attribute
 case class Description(value: String) extends Attribute
-case class Depends(phases: List[Phase]) extends Attribute
+case class Depends(phases: List[DependantPhase]) extends Attribute
 
 case class Commands(commands: List[Command]) extends Attribute
 
@@ -28,7 +31,7 @@ class ConfigParser extends JavaTokenParsers {
   }
 
   def dependsOn = "depends on" ~ ":" ~> rep1(str, ",") ^^ { values =>
-    Depends(values.map(Phase(_, Nil)))
+    Depends(values.map(DependantPhase(_)))
   }
 
   def commands = "commands" ~ ":" ~> rep1(str, eol) ^^ { cmdLines =>
@@ -39,7 +42,10 @@ class ConfigParser extends JavaTokenParsers {
 
   def phase = phaseName ~ rep(attribute) ^^ {
     case name ~ attributes =>
-      Phase(name, attributes)
+      val cmdLines = (attributes collect { case cmds: Commands => cmds.commands }).headOption.getOrElse(Nil) map { cmd => cmd.cmdLine }
+      val description = (attributes collect { case d: Description => d.value }).headOption
+      val dependsOn = (attributes collect { case d: Depends => d.phases }).headOption.getOrElse(Nil)
+      Phase(name, cmdLines, description, dependsOn)
   }
 
   def config = rep1(phase)
