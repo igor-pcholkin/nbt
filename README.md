@@ -12,10 +12,10 @@ Namely:
 
 Elaboration:
 
-Configuration to be written in a human-friendly language.
-For typical projects you should be able to cope without writing any configuration at all using "convention over configuration" approach.
-For easier dependency management you are provided with pre-built profiles for different kinds of typical projects.
-You are also able to define your own profiles with dependencies OR ASK ME TO CREATE YOUR PROFILE FOR YOU!
-During a build (whatever it means) you should be able to understand what happens under hood.
-nbt uses a scenario which maps each of execution/build phases to a list of specific commands.
-nbt provides a default execution scenario which you are able customize per-project.
+Configuration to be written in a human-friendly language.<br/>
+For typical projects you should be able to cope without writing any configuration at all using "convention over configuration" approach.<br/>
+For easier dependency management you are provided with pre-built profiles for different kinds of typical projects.<br/>
+You are also able to define your own profiles with dependencies OR ASK ME TO CREATE YOUR PROFILE FOR YOU!<br/>
+During a build (whatever it means) you should be able to understand what happens under hood.<br/>
+nbt uses a scenario which maps each of execution/build phases to a list of specific commands.<br/>
+nbt provides a default execution scenario which you are able customize per-project.<br/>
