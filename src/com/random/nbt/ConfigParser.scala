@@ -40,11 +40,15 @@ class ConfigParser extends JavaTokenParsers {
 
   def attribute = description | dependsOn | commands
 
+  def getCommandLineOfFirstCommands(attributes:List[Attribute]) = (attributes collect { case cmds: Commands => cmds.commands }).headOption.getOrElse(Nil) map { cmd => cmd.cmdLine }
+  def getValueOfFirstDescription(attributes:List[Attribute]) = (attributes collect { case d: Description => d.value }).headOption
+  def getFirstDependsOnList(attributes:List[Attribute]) = (attributes collect { case d: Depends => d.phases }).headOption.getOrElse(Nil)
+
   def phase = phaseName ~ rep(attribute) ^^ {
     case name ~ attributes =>
-      val cmdLines = (attributes collect { case cmds: Commands => cmds.commands }).headOption.getOrElse(Nil) map { cmd => cmd.cmdLine }
-      val description = (attributes collect { case d: Description => d.value }).headOption
-      val dependsOn = (attributes collect { case d: Depends => d.phases }).headOption.getOrElse(Nil)
+      val cmdLines = getCommandLineOfFirstCommands(attributes)
+      val description = getValueOfFirstDescription(attributes)
+      val dependsOn = getFirstDependsOnList(attributes)
       Phase(name, cmdLines, description, dependsOn)
   }
 
