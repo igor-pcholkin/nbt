@@ -24,22 +24,24 @@ class PhaseExecutor {
   }
 
   def executeInternalCalls(phase: Phase)(implicit context: Map[String, String]) = {
-    if (phase.calls.nonEmpty)
+    if (phase.calls.nonEmpty) {
+      val callLine = resolveVarsInCommmandLine(phase.calls.head)
       if (phase.name == "compile") {
-        val callParams = phase.calls.head.split("[ \t]+")
+        val callParams = callLine.split("[ \t]+")
         if (callParams(0) == "compile") {
-          val sourceDir = callParams(1)
+          val sourceDir = resolveVarsInCommmandLine(callParams(1))
           println("Compile source dir: " + sourceDir)
           new ScalaCompiler().compile(sourceDir)
         }
       } else if (phase.name == "find") {
-        val callParams = phase.calls.head.split("[ \t]+")
+        val callParams = callLine.split("[ \t]+")
         if (callParams(0) == "findMainClass") {
           val binDir = callParams(1)
           println("Finding in bin dir: " + binDir)
           new ScalaAppRunner().findMainClass(binDir)
         }
       }
+    }
   }
 
   def executeCommmandsOfPhase(phase: Phase)(implicit context: Map[String, String]) = {
