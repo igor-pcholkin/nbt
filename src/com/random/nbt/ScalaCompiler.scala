@@ -31,14 +31,15 @@ class ScalaCompiler {
     }
     val runInstance = runClass.getConstructor(globalClass).newInstance(globalInstance).asInstanceOf[AnyRef]
     val compileMethod = runClass.getMethod("compileSources", classLoader.loadClass("scala.collection.immutable.List"))
-    val sources = scanSourceFilesInDir(sourceDir) map { fileName =>
-        println("Compiling file: " + fileName)
-        val fileContents = Source.fromFile(fileName).getLines().mkString("\n")
-        new BatchSourceFile("<source>", fileContents)
-    }
+    val sources = prepareSources(sourceDir)
     val runArgs = Array(sources.toList)
     compileMethod.invoke(runInstance, runArgs: _*)
+  }
 
+  def prepareSources(sourceDir: String) = scanSourceFilesInDir(sourceDir) map { fileName =>
+    println("Compiling file: " + fileName)
+    val fileContents = Source.fromFile(fileName).getLines().mkString("\n")
+    new BatchSourceFile("<source>", fileContents)
   }
 
   def scanSourceFilesInDir(sourceDir: String): List[String] = {
