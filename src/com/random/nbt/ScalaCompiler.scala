@@ -9,10 +9,8 @@ import java.net.URL
 class ScalaCompiler {
   def compile(sourceDir: String) = {
     val classLoader = new java.net.URLClassLoader(Array(
-        //new URL("file:///Users/igor/Downloads/scala-2.11.8/lib/scala-reflect.jar")//,
         new URL("file:///Users/igor/Downloads/scala-2.11.8/lib/scala-compiler.jar")
         ))
-        //,this.getClass.getClassLoader)
 
     val settingsClass = classLoader.loadClass("scala.tools.nsc.Settings")
     val settingsInstance = settingsClass.getConstructor().newInstance().asInstanceOf[AnyRef]
