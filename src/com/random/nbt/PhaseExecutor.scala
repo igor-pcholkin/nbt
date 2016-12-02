@@ -38,7 +38,7 @@ class PhaseExecutor {
         if (callParams(0) == "findMainClass") {
           val binDir = callParams(1)
           println("Finding in bin dir: " + binDir)
-          new ScalaAppRunner().findMainClass(binDir)
+          println(new ScalaAppRunner().findMainClass(binDir).getOrElse(""))
         }
       }
     }
