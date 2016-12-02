@@ -39,7 +39,7 @@ class ScalaCompiler {
   def prepareSources(sourceDir: String) = scanSourceFilesInDir(sourceDir) map { fileName =>
     println("Compiling file: " + fileName)
     val fileContents = Source.fromFile(fileName).getLines().mkString("\n")
-    new BatchSourceFile("<source>", fileContents)
+    new BatchSourceFile(fileName, fileContents)
   }
 
   def scanSourceFilesInDir(sourceDir: String): List[String] = {
@@ -49,12 +49,16 @@ class ScalaCompiler {
         addedFiles
       } else {
         val sourceDir = nonProcessedDirs.head
-        val srcDirEntries = new File(sourceDir).list().toList map (sourceDir + File.separator + _)
+        val srcDirEntries = new File(sourceDir).list().toList map (createAbsolutePath(sourceDir, _))
         val (srcDirDirs, srcDirFiles) = srcDirEntries.partition ( new File(_).isDirectory )
         val scalaFiles = srcDirFiles collect { case srcFile if srcFile.endsWith(".scala") => srcFile }
         scanSourceFilesInDir(addedFiles ++ scalaFiles, nonProcessedDirs.tail ++ srcDirDirs)
       }
     }
     scanSourceFilesInDir(Nil, List(sourceDir))
+  }
+
+  def createAbsolutePath(sourceDir: String, fileName: String) = {
+    sourceDir + (if (sourceDir.endsWith(File.separator)) "" else File.separator) + fileName
   }
 }
