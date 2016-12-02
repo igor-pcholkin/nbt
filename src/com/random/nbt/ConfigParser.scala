@@ -25,7 +25,9 @@ class ConfigParser extends JavaTokenParsers {
   def str = ("""([^\n\r])+""").r ^^ { s => s.trim()
   }
 
-  def phaseName = ("clean" | "compile" | "package" | "run") <~ ":"
+  def phaseName = ("""([^\n\r:])+""").r
+
+  def phaseNameHeader = phaseName <~ ":"
 
   def description = "description" ~ ":" ~> str ^^ { value =>
     Description(value)
@@ -50,7 +52,7 @@ class ConfigParser extends JavaTokenParsers {
   def getValueOfFirstDescription(attributes:List[Attribute]) = (attributes collect { case d: Description => d.value }).headOption
   def getFirstDependsOnList(attributes:List[Attribute]) = (attributes collect { case d: Depends => d.phases }).headOption.getOrElse(Nil)
 
-  def phase = phaseName ~ rep(attribute) ^^ {
+  def phase = phaseNameHeader ~ rep(attribute) ^^ {
     case name ~ attributes =>
       val cmdLines = getCommandLineOfFirstCommands(attributes)
       val description = getValueOfFirstDescription(attributes)

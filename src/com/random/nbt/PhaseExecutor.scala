@@ -32,6 +32,13 @@ class PhaseExecutor {
           println("Compile source dir: " + sourceDir)
           new ScalaCompiler().compile(sourceDir)
         }
+      } else if (phase.name == "find") {
+        val callParams = phase.calls.head.split("[ \t]+")
+        if (callParams(0) == "findMainClass") {
+          val binDir = callParams(1)
+          println("Finding in bin dir: " + binDir)
+          new ScalaAppRunner().findMainClass(binDir)
+        }
       }
   }
 

@@ -6,7 +6,7 @@ import scala.io.Source
 import scala.annotation.tailrec
 import java.net.URL
 
-class ScalaCompiler {
+class ScalaCompiler extends FileUtils {
   def compile(sourceDir: String) = {
     val classLoader = new java.net.URLClassLoader(Array(
         new URL("file:///Users/igor/Downloads/scala-2.11.8/lib/scala-compiler.jar")
@@ -42,23 +42,5 @@ class ScalaCompiler {
     new BatchSourceFile(fileName, fileContents)
   }
 
-  def scanSourceFilesInDir(sourceDir: String): List[String] = {
-    @tailrec
-    def scanSourceFilesInDir(addedFiles: List[String], nonProcessedDirs: List[String]): List[String] = {
-      if (nonProcessedDirs.isEmpty) {
-        addedFiles
-      } else {
-        val sourceDir = nonProcessedDirs.head
-        val srcDirEntries = new File(sourceDir).list().toList map (createAbsolutePath(sourceDir, _))
-        val (srcDirDirs, srcDirFiles) = srcDirEntries.partition ( new File(_).isDirectory )
-        val scalaFiles = srcDirFiles collect { case srcFile if srcFile.endsWith(".scala") => srcFile }
-        scanSourceFilesInDir(addedFiles ++ scalaFiles, nonProcessedDirs.tail ++ srcDirDirs)
-      }
-    }
-    scanSourceFilesInDir(Nil, List(sourceDir))
-  }
-
-  def createAbsolutePath(sourceDir: String, fileName: String) = {
-    sourceDir + (if (sourceDir.endsWith(File.separator)) "" else File.separator) + fileName
-  }
+  def scanSourceFilesInDir(sourceDir: String): List[String] = scanFilesInDir(sourceDir, fileName => fileName.endsWith(".scala"))
 }
