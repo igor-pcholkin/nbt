@@ -1,6 +1,8 @@
 package com.random.nbt
 
-class PhaseExecutor {
+import scala.collection.mutable.Map
+
+class PhaseExecutor extends FileUtils {
   def runPhase(phaseName: String)(implicit phases: List[Phase], context: Map[String, String]) = {
     phases.find(_.name == phaseName) match {
       case Some(phase) => execute(phase)
@@ -26,20 +28,18 @@ class PhaseExecutor {
   def executeInternalCalls(phase: Phase)(implicit context: Map[String, String]) = {
     if (phase.calls.nonEmpty) {
       val callLine = resolveVarsInCommmandLine(phase.calls.head)
-      if (phase.name == "compile") {
-        val callParams = callLine.split("[ \t]+")
-        if (callParams(0) == "compile") {
-          val sourceDir = resolveVarsInCommmandLine(callParams(1))
+      val callParams = callLine.split("[ \t]+")
+      callParams(0) match {
+        case "compile" =>
+          val sourceDir = callParams(1)
           println("Compile source dir: " + sourceDir)
           new ScalaCompiler().compile(sourceDir)
-        }
-      } else if (phase.name == "find") {
-        val callParams = callLine.split("[ \t]+")
-        if (callParams(0) == "findMainClass") {
+        case "findMainClass" =>
           val binDir = callParams(1)
-          println("Finding in bin dir: " + binDir)
-          println(new ScalaAppRunner().findMainClass(binDir).getOrElse(""))
-        }
+          println("Finding main class in bin dir: " + binDir)
+          context += ("mainClass" -> findMainClass(binDir).getOrElse(""))
+        case "findScalaLibrary" =>
+          context += ("scalaLibrary" -> "/Users/igor/Downloads/scala-2.11.8/lib/scala-library.jar")
       }
     }
   }
@@ -53,6 +53,7 @@ class PhaseExecutor {
   def executeCmdLine(cmdLine: String)(implicit context: Map[String, String]) = {
     import sys.process._
     val refinedCmdLine = resolveVarsInCommmandLine(cmdLine)
+    println(s"Executing command: $refinedCmdLine")
     refinedCmdLine.!
   }
 

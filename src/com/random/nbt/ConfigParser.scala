@@ -22,8 +22,9 @@ class ConfigParser extends JavaTokenParsers {
 
   override val whiteSpace = """[ \t\n]+""".r
 
-  def str = ("""([^\n\r])+""").r ^^ { s => s.trim()
-  }
+  def str = ("""([^\n\r])+""").r ^^ { s => s.trim() }
+
+  def delimitedStr = ("""([^\n\r,])+""").r ^^ { s => s.trim() }
 
   def phaseName = ("""([^\n\r:])+""").r
 
@@ -33,7 +34,7 @@ class ConfigParser extends JavaTokenParsers {
     Description(value)
   }
 
-  def dependsOn = "depends on" ~ ":" ~> rep1(str, ",") ^^ { values =>
+  def dependsOn = "depends on" ~ ":" ~> rep1sep(delimitedStr, ",") ^^ { values =>
     Depends(values.map(DependantPhase(_)))
   }
 

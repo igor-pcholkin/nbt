@@ -7,5 +7,7 @@ object Main extends App {
   if (args.length > 0) {
     implicit val phases = new ConfigParser().parse()
     new PhaseExecutor().runPhase(args(0))
+  } else {
+    println("Usage: nbt <build phase>")
   }
 }
