@@ -40,6 +40,22 @@ class PhaseExecutor extends FileUtils {
           context += ("mainClass" -> findMainClass(binDir).getOrElse(""))
         case "findScalaLibrary" =>
           context += ("scalaLibrary" -> "/Users/igor/Downloads/scala-2.11.8/lib/scala-library.jar")
+        case "listLocalRevisions" =>
+          val org = callParams(1)
+          val module = callParams(2)
+          println(s"Searching ivy modules: $org $module")
+          new IvyHelper().getLocalModuleVersions(org, module) foreach (println(_))
+        case "getAvailableModuleVersions" =>
+          val org = callParams(1)
+          val module = callParams(2)
+          println(s"Searching versions for artifact: $org $module")
+          new IvyHelper().getAvailableModuleVersions(org, module) foreach (println(_))
+        case "resolveModuleVersion" =>
+          val org = callParams(1)
+          val module = callParams(2)
+          val version = callParams(3)
+          println(s"Resolving version for artifact: $org $module $version")
+          new IvyHelper().resolveModule(org, module, version)
       }
     }
   }
