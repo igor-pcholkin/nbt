@@ -3,6 +3,8 @@ package com.random.nbt
 import scala.collection.mutable.Map
 
 class PhaseExecutor extends FileUtils {
+  val ivyHelper = new IvyHelper()
+
   def runPhase(phaseName: String)(implicit phases: List[Phase], context: Map[String, String]) = {
     phases.find(_.name == phaseName) match {
       case Some(phase) => execute(phase)
@@ -39,7 +41,13 @@ class PhaseExecutor extends FileUtils {
           println("Finding main class in bin dir: " + binDir)
           context += ("mainClass" -> findMainClass(binDir).getOrElse(""))
         case "findScalaLibrary" =>
-          context += ("scalaLibrary" -> "/Users/igor/Downloads/scala-2.11.8/lib/scala-library.jar")
+          val mayBeScalaVersion = context.get("scalaVersion").orElse(new IvyHelper().getLastLocalVersion("org.scala-lang", "scala-library"))
+          mayBeScalaVersion match {
+            case Some(scalaVersion) =>
+              val scalaLibPath = ivyHelper.getModuleJarFileName("org.scala-lang", "scala-library", scalaVersion)
+              context += ("scalaLibrary" -> scalaLibPath)
+            case None => println("Error: no scala library is found")
+          }
         case "listLocalRevisions" =>
           val org = callParams(1)
           val module = callParams(2)
@@ -61,6 +69,10 @@ class PhaseExecutor extends FileUtils {
           val module = callParams(2)
           val version = callParams(3)
           println("Module file name: " + new IvyHelper().getModuleJarFileName(org, module, version))
+        case "setScalaVersion" =>
+          val scalaVersion = callParams(1)
+          println("Setting scala version to: $scalaVersion")
+          context += ("scalaVersion" -> scalaVersion)
       }
     }
   }

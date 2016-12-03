@@ -5,12 +5,41 @@ import scala.reflect.internal.util.BatchSourceFile
 import scala.io.Source
 import scala.annotation.tailrec
 import java.net.URL
+import scala.collection.mutable.Map
+
+object ScalaCompiler {
+  val ivyHelper = new IvyHelper()
+  val org = "org.scala-lang"
+  val scalaCompiler = "scala-compiler"
+  val scalaReflect = "scala-reflect"
+}
 
 class ScalaCompiler extends FileUtils {
-  def compile(sourceDir: String) = {
-    val classLoader = new java.net.URLClassLoader(Array(
-        new URL("file:///Users/igor/Downloads/scala-2.11.8/lib/scala-compiler.jar")
-        ))
+  import ScalaCompiler._
+
+  def compile(sourceDir: String)(implicit context: Map[String, String]) = {
+    val scalaVersion = context.get("scalaVersion")
+    val mayBeScalaCompilerVersion = scalaVersion.orElse(ivyHelper.getLastLocalVersion(org, scalaCompiler))
+    val mayBeScalaReflectVersion = scalaVersion.orElse(ivyHelper.getLastLocalVersion(org, scalaReflect))
+    (mayBeScalaCompilerVersion, mayBeScalaReflectVersion) match {
+      case (Some(scalaCompilerVersion), Some(scalaReflectVersion)) =>
+        if (scalaCompilerVersion == scalaReflectVersion) {
+          val scalaCompilerJarPath = ivyHelper.getModuleJarFileName(org, scalaCompiler, scalaCompilerVersion)
+          val scalaReflectJarPath = ivyHelper.getModuleJarFileName(org, scalaReflect, scalaReflectVersion)
+          val classLoader = new java.net.URLClassLoader(Array(
+              new URL(s"file://$scalaCompilerJarPath"),
+              new URL(s"file://$scalaReflectJarPath")
+              ))
+          println(s"Compile using: $scalaCompilerJarPath")
+          compileUsing(sourceDir, classLoader)
+        } else {
+          println(s"Error: latest scala-compiler ($scalaCompilerVersion) and scala-reflect ($scalaReflectVersion) version mismatch")
+        }
+      case _ => println("Error: No scala compiler or dependant libs found")
+    }
+  }
+
+  def compileUsing(sourceDir: String, classLoader: ClassLoader) = {
 
     val settingsClass = classLoader.loadClass("scala.tools.nsc.Settings")
     val settingsInstance = settingsClass.getConstructor().newInstance().asInstanceOf[AnyRef]
@@ -27,7 +56,7 @@ class ScalaCompiler extends FileUtils {
       c.getName.contains("Run")
     } match {
       case Some(runClass) => runClass
-      case None => throw new RuntimeException("No Run class found")
+      case None           => throw new RuntimeException("No Run class found")
     }
     val runInstance = runClass.getConstructor(globalClass).newInstance(globalInstance).asInstanceOf[AnyRef]
     val compileMethod = runClass.getMethod("compileSources", classLoader.loadClass("scala.collection.immutable.List"))

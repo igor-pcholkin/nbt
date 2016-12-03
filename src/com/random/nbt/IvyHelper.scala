@@ -29,7 +29,7 @@ class IvyHelper {
 
     val ivy = Ivy.newInstance(settings)
 
-    ivy.listRevisions(org, module)
+    sortVersionsDesc(ivy.listRevisions(org, module))
   }
 
   def getAvailableModuleVersions(org: String, module: String) = {
@@ -46,7 +46,7 @@ class IvyHelper {
 
     val ivy = Ivy.newInstance(settings)
 
-    ivy.listRevisions(org, module)
+    sortVersionsDesc(ivy.listRevisions(org, module))
   }
 
   def resolveModule(org: String, module: String, revision: String) = {
@@ -103,5 +103,24 @@ class IvyHelper {
     val localRepo = "/Users/igor/.ivy2/cache"
 
     localRepo + s"/$org/$module/jars/$module-$revision.jar"
+  }
+
+  def sortVersionsDesc(versions: Seq[String]): Seq[String] = {
+    versions.sortWith { (version1, version2) =>
+      val mismatches = (version1.split("\\.") zip version2.split("\\.")).dropWhile { case (left, right) => left == right }
+      if (mismatches.length > 0) {
+        val (left, right) = mismatches(0)
+        Integer.valueOf(left) >= Integer.valueOf(right)
+      } else true
+    }
+  }
+
+  def getLastLocalVersion(org: String, module: String): Option[String] = {
+    val versions = getLocalModuleVersions(org, module)
+    versions.headOption
+  }
+
+  def getLastLocalVersionFilePath(org: String, module: String): Option[String] = {
+    getLastLocalVersion(org, module) map (getModuleJarFileName(org, module, _))
   }
 }
