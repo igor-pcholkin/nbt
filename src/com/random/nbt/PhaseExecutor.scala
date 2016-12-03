@@ -56,6 +56,11 @@ class PhaseExecutor extends FileUtils {
           val version = callParams(3)
           println(s"Resolving version for artifact: $org $module $version")
           new IvyHelper().resolveModule(org, module, version)
+        case "getModuleJarFileName" =>
+          val org = callParams(1)
+          val module = callParams(2)
+          val version = callParams(3)
+          println("Module file name: " + new IvyHelper().getModuleJarFileName(org, module, version))
       }
     }
   }

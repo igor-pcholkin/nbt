@@ -97,4 +97,11 @@ class IvyHelper {
 
     ivy.resolve(md, ro)
   }
+
+  def getModuleJarFileName(org: String, module: String, revision: String) = {
+    val settings = new IvySettings
+    val localRepo = "/Users/igor/.ivy2/cache"
+
+    localRepo + s"/$org/$module/jars/$module-$revision.jar"
+  }
 }
