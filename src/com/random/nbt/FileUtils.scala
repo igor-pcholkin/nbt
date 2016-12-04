@@ -13,10 +13,15 @@ trait FileUtils {
         addedFiles
       } else {
         val sourceDir = nonProcessedDirs.head
-        val srcDirEntries = new File(sourceDir).list().toList map (createAbsolutePath(sourceDir, _))
-        val (srcDirDirs, srcDirFiles) = srcDirEntries.partition ( new File(_).isDirectory )
-        val scalaFiles = srcDirFiles filter fileFilter
-        scanFilesInDir(addedFiles ++ scalaFiles, nonProcessedDirs.tail ++ srcDirDirs)
+        val dirEntryNames = new File(sourceDir).list()
+        if (dirEntryNames == null) {
+          scanFilesInDir(addedFiles, nonProcessedDirs.tail)
+        } else {
+          val srcDirEntriesFullNames = dirEntryNames map (createAbsolutePath(sourceDir, _))
+          val (srcDirDirs, srcDirFiles) = srcDirEntriesFullNames.partition ( new File(_).isDirectory )
+          val scalaFiles = srcDirEntriesFullNames filter fileFilter
+          scanFilesInDir(addedFiles ++ scalaFiles, nonProcessedDirs.tail ++ srcDirDirs)
+        }
       }
     }
     scanFilesInDir(Nil, List(sourceDir))

@@ -16,10 +16,22 @@ import org.apache.ivy.core.module.descriptor.DefaultModuleDescriptor
 import org.apache.ivy.core.module.descriptor.DefaultDependencyDescriptor
 import org.apache.ivy.plugins.resolver.DependencyResolver
 
-object IvyHelper {
-  val localRepo = "/Users/igor/.ivy2/cache"
+object IvyHelper extends FileUtils {
+  val localRepo = resolveLocalRepoPath()
   val cacheResolver = createCacheResolver()
   val ibiblioResolver = createBiblioResolver()
+
+  def resolveLocalRepoPath() = {
+      val homeDir = System.getenv("HOME")
+      val repoCandidate = new File(s"$homeDir/.ivy2/cache")
+      if (repoCandidate.exists()) {
+        repoCandidate.getAbsolutePath
+      } else {
+        val fallback = "/tmp"
+        println(s"Error: can't resolve local ivy cache, falling back to $fallback")
+        fallback
+      }
+  }
 
   def createCacheResolver() = {
     val cr = new CacheResolver()
