@@ -2,7 +2,7 @@ package com.random.nbt
 
 import scala.collection.mutable.Map
 
-class PhaseExecutor(implicit val context: Map[String, String]) {
+class PhaseExecutor(implicit val context: Map[String, Any]) {
   def runPhase(phaseName: String)(implicit phases: List[Phase]) = {
     phases.find(_.name == phaseName) match {
       case Some(phase) => execute(phase)

@@ -9,7 +9,7 @@ object InternalCallHandler {
   val ivyHelper = new IvyHelper()
 }
 
-class InternalCallHandler(methodName: String, callParams: Array[String])(implicit val context: Map[String, String]) extends FileUtils {
+class InternalCallHandler(methodName: String, callParams: Array[String])(implicit val context: Map[String, Any]) extends FileUtils {
   import InternalCallHandler._
 
   def compile() = {
@@ -25,7 +25,8 @@ class InternalCallHandler(methodName: String, callParams: Array[String])(implici
   }
 
   def findScalaLibrary(): Unit = {
-    val mayBeScalaVersion = context.get("scalaVersion").orElse(ivyHelper.getLastLocalVersion("org.scala-lang", "scala-library"))
+    val mayBeScalaVersion = context.get("scalaVersion").asInstanceOf[Option[String]].
+      orElse(ivyHelper.getLastLocalVersion("org.scala-lang", "scala-library"))
     mayBeScalaVersion match {
       case Some(scalaVersion) =>
         val scalaLibPath = ivyHelper.getModuleJarFileName("org.scala-lang", "scala-library", scalaVersion)
@@ -67,6 +68,11 @@ class InternalCallHandler(methodName: String, callParams: Array[String])(implici
     val scalaVersion = callParams(0)
     println(s"Setting scala version to: $scalaVersion")
     context += ("scalaVersion" -> scalaVersion)
+  }
+
+  def setCompileDependencies() = {
+    val dependencies = callParams.mkString.split("[\\s,]+")
+    context += ("compileDependencies" -> dependencies)
   }
 
   def handle() = {

@@ -14,11 +14,11 @@ object ScalaCompiler {
   val scalaReflect = "scala-reflect"
 }
 
-class ScalaCompiler extends FileUtils {
+class ScalaCompiler(implicit val context: Map[String, Any]) extends FileUtils {
   import ScalaCompiler._
 
-  def compile(sourceDir: String)(implicit context: Map[String, String]) = {
-    val scalaVersion = context.get("scalaVersion")
+  def compile(sourceDir: String)(implicit context: Map[String, Any]) = {
+    val scalaVersion = context.get("scalaVersion").asInstanceOf[Option[String]]
     val mayBeScalaCompilerVersion = scalaVersion.orElse(ivyHelper.getLastLocalVersion(org, scalaCompiler))
     val mayBeScalaReflectVersion = scalaVersion.orElse(ivyHelper.getLastLocalVersion(org, scalaReflect))
     (mayBeScalaCompilerVersion, mayBeScalaReflectVersion) match {
