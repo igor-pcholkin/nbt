@@ -35,17 +35,41 @@ class ScalaCompiler(implicit val context: Map[String, Any]) extends FileUtils {
   def compileUsing(sourceDir: String, scalaVersion: String): Unit = {
     val scalaCompilerJarPath = ivyHelper.getModuleJarFileName(org, scalaCompiler, scalaVersion)
     val scalaReflectJarPath = ivyHelper.getModuleJarFileName(org, scalaReflect, scalaVersion)
-    val classLoader = new java.net.URLClassLoader(Array(
-      new URL(s"file://$scalaCompilerJarPath"),
-      new URL(s"file://$scalaReflectJarPath")))
-    println(s"Compile using: $scalaCompilerJarPath")
+    val classPath = List(scalaCompilerJarPath, scalaReflectJarPath) map { jarPath =>
+      new URL(s"file://$jarPath")
+    }
+    val classLoader = new java.net.URLClassLoader(classPath.toArray)
+    println(s"""Compile using classpath: ${classPath.mkString(":")}""")
     compileUsing(sourceDir, classLoader)
+  }
+
+  def getDependenciesAsJarPaths() = {
+    context.get("compileDependencies") match {
+      case Some(compileDependencies) => parseDependencies(compileDependencies.asInstanceOf[Array[String]]) flatMap { case (org, module) =>
+        ivyHelper.getLastLocalVersionFilePath(org, module)
+      }
+      case None => Nil
+    }
+  }
+
+  def parseDependencies(rawDependencies: Seq[String]) = {
+    rawDependencies flatMap { d =>
+      val dParts = d.split(":")
+      if (dParts.length < 2) {
+        println(s"Error: can't parse dependency $d")
+        None
+      } else {
+        Some((dParts(0), dParts(1)))
+      }
+    }
   }
 
   def compileUsing(sourceDir: String, classLoader: ClassLoader) = {
 
     val settingsClass = classLoader.loadClass("scala.tools.nsc.Settings")
     val settingsInstance = settingsClass.getConstructor().newInstance().asInstanceOf[AnyRef]
+
+    addDependenciesToCompile(settingsClass, settingsInstance, classLoader)
 
     val reporterClass = classLoader.loadClass("scala.tools.nsc.reporters.ConsoleReporter")
     val reporterInstance = reporterClass.getConstructor(settingsClass).newInstance(settingsInstance).asInstanceOf[AnyRef]
@@ -56,6 +80,14 @@ class ScalaCompiler(implicit val context: Map[String, Any]) extends FileUtils {
     val globalInstance = globalContructor.newInstance(settingsInstance, reporterInstance).asInstanceOf[AnyRef]
 
     invokeCompileMethod(sourceDir, globalClass, globalInstance, classLoader)
+  }
+
+  def addDependenciesToCompile(settingsClass: Class[_], settingsInstance: AnyRef, classLoader: ClassLoader) = {
+    val classPath = getDependenciesAsJarPaths.mkString(":")
+    val cpArgs = s"""-classpath "$classPath" """
+    println(s"Passing additional dependencies for compiler: $cpArgs")
+    val processArgumentStringMethod = settingsClass.getMethod("processArgumentString", classLoader.loadClass("java.lang.String"))
+    processArgumentStringMethod.invoke(settingsInstance, cpArgs)
   }
 
   def invokeCompileMethod(sourceDir: String, globalClass: Class[_], globalInstance: AnyRef, classLoader: ClassLoader) = {
