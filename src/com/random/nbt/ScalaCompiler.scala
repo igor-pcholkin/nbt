@@ -17,14 +17,14 @@ object ScalaCompiler {
 class ScalaCompiler(implicit val context: Map[String, Any]) extends FileUtils {
   import ScalaCompiler._
 
-  def compile(sourceDir: String)(implicit context: Map[String, Any]) = {
+  def compile(sourceDir: String, destDir: String)(implicit context: Map[String, Any]) = {
     val scalaVersion = context.get("scalaVersion").asInstanceOf[Option[String]]
     val mayBeScalaCompilerVersion = scalaVersion.orElse(ivyHelper.getLastLocalVersion(org, scalaCompiler))
     val mayBeScalaReflectVersion = scalaVersion.orElse(ivyHelper.getLastLocalVersion(org, scalaReflect))
     (mayBeScalaCompilerVersion, mayBeScalaReflectVersion) match {
       case (Some(scalaCompilerVersion), Some(scalaReflectVersion)) =>
         if (scalaCompilerVersion == scalaReflectVersion) {
-          compileUsing(sourceDir, scalaCompilerVersion)
+          compileUsing(sourceDir, destDir, scalaCompilerVersion)
         } else {
           println(s"Error: latest scala-compiler ($scalaCompilerVersion) and scala-reflect ($scalaReflectVersion) version mismatch")
         }
@@ -32,7 +32,7 @@ class ScalaCompiler(implicit val context: Map[String, Any]) extends FileUtils {
     }
   }
 
-  def compileUsing(sourceDir: String, scalaVersion: String): Unit = {
+  def compileUsing(sourceDir: String, destDir: String, scalaVersion: String): Unit = {
     val scalaCompilerJarPath = ivyHelper.getModuleJarFileName(org, scalaCompiler, scalaVersion)
     val scalaReflectJarPath = ivyHelper.getModuleJarFileName(org, scalaReflect, scalaVersion)
     val classPath = List(scalaCompilerJarPath, scalaReflectJarPath) map { jarPath =>
@@ -40,7 +40,7 @@ class ScalaCompiler(implicit val context: Map[String, Any]) extends FileUtils {
     }
     val classLoader = new java.net.URLClassLoader(classPath.toArray)
     println(s"""Compile using classpath: ${classPath.mkString(":")}""")
-    compileUsing(sourceDir, classLoader)
+    compileUsing(sourceDir, destDir, classLoader)
   }
 
   def getDependenciesAsJarPaths() = {
@@ -64,12 +64,12 @@ class ScalaCompiler(implicit val context: Map[String, Any]) extends FileUtils {
     }
   }
 
-  def compileUsing(sourceDir: String, classLoader: ClassLoader) = {
+  def compileUsing(sourceDir: String, destDir: String, classLoader: ClassLoader) = {
 
     val settingsClass = classLoader.loadClass("scala.tools.nsc.Settings")
     val settingsInstance = settingsClass.getConstructor().newInstance().asInstanceOf[AnyRef]
 
-    addDependenciesToCompile(settingsClass, settingsInstance, classLoader)
+    addCompileArguments(destDir, settingsClass, settingsInstance, classLoader)
 
     val reporterClass = classLoader.loadClass("scala.tools.nsc.reporters.ConsoleReporter")
     val reporterInstance = reporterClass.getConstructor(settingsClass).newInstance(settingsInstance).asInstanceOf[AnyRef]
@@ -82,9 +82,9 @@ class ScalaCompiler(implicit val context: Map[String, Any]) extends FileUtils {
     invokeCompileMethod(sourceDir, globalClass, globalInstance, classLoader)
   }
 
-  def addDependenciesToCompile(settingsClass: Class[_], settingsInstance: AnyRef, classLoader: ClassLoader) = {
+  def addCompileArguments(destDir: String, settingsClass: Class[_], settingsInstance: AnyRef, classLoader: ClassLoader) = {
     val classPath = getDependenciesAsJarPaths.mkString(":")
-    val cpArgs = s"""-classpath "$classPath" """
+    val cpArgs = s"""-classpath "$classPath" -d $destDir"""
     println(s"Passing additional dependencies for compiler: $cpArgs")
     val processArgumentStringMethod = settingsClass.getMethod("processArgumentString", classLoader.loadClass("java.lang.String"))
     processArgumentStringMethod.invoke(settingsInstance, cpArgs)

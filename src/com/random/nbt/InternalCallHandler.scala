@@ -13,9 +13,10 @@ class InternalCallHandler(methodName: String, callParams: Array[String])(implici
   import InternalCallHandler._
 
   def compile() = {
-    val sourceDir = callParams(0)
+    val sourceDir = if (callParams.length > 0) callParams(0) else createAbsolutePath(context("currentDir").asInstanceOf[String], "src")
+    val destDir = if (callParams.length > 1) callParams(1) else createAbsolutePath(context("currentDir").asInstanceOf[String], "bin")
     println("Compile source dir: " + sourceDir)
-    new ScalaCompiler().compile(sourceDir)
+    new ScalaCompiler().compile(sourceDir, destDir)
   }
 
   def findMainClass(): Unit = {
