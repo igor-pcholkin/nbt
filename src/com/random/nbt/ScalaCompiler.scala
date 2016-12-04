@@ -24,19 +24,22 @@ class ScalaCompiler extends FileUtils {
     (mayBeScalaCompilerVersion, mayBeScalaReflectVersion) match {
       case (Some(scalaCompilerVersion), Some(scalaReflectVersion)) =>
         if (scalaCompilerVersion == scalaReflectVersion) {
-          val scalaCompilerJarPath = ivyHelper.getModuleJarFileName(org, scalaCompiler, scalaCompilerVersion)
-          val scalaReflectJarPath = ivyHelper.getModuleJarFileName(org, scalaReflect, scalaReflectVersion)
-          val classLoader = new java.net.URLClassLoader(Array(
-              new URL(s"file://$scalaCompilerJarPath"),
-              new URL(s"file://$scalaReflectJarPath")
-              ))
-          println(s"Compile using: $scalaCompilerJarPath")
-          compileUsing(sourceDir, classLoader)
+          compileUsing(sourceDir, scalaCompilerVersion)
         } else {
           println(s"Error: latest scala-compiler ($scalaCompilerVersion) and scala-reflect ($scalaReflectVersion) version mismatch")
         }
       case _ => println("Error: No scala compiler or dependant libs found")
     }
+  }
+
+  def compileUsing(sourceDir: String, scalaVersion: String): Unit = {
+    val scalaCompilerJarPath = ivyHelper.getModuleJarFileName(org, scalaCompiler, scalaVersion)
+    val scalaReflectJarPath = ivyHelper.getModuleJarFileName(org, scalaReflect, scalaVersion)
+    val classLoader = new java.net.URLClassLoader(Array(
+      new URL(s"file://$scalaCompilerJarPath"),
+      new URL(s"file://$scalaReflectJarPath")))
+    println(s"Compile using: $scalaCompilerJarPath")
+    compileUsing(sourceDir, classLoader)
   }
 
   def compileUsing(sourceDir: String, classLoader: ClassLoader) = {
@@ -52,6 +55,10 @@ class ScalaCompiler extends FileUtils {
     val globalContructor = globalClass.getConstructor(settingsClass, abstractReporterClass)
     val globalInstance = globalContructor.newInstance(settingsInstance, reporterInstance).asInstanceOf[AnyRef]
 
+    invokeCompileMethod(sourceDir, globalClass, globalInstance, classLoader)
+  }
+
+  def invokeCompileMethod(sourceDir: String, globalClass: Class[_], globalInstance: AnyRef, classLoader: ClassLoader) = {
     val runClass = globalInstance.getClass().getClasses.find { c =>
       c.getName.contains("Run")
     } match {

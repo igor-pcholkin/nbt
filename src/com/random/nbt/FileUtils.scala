@@ -26,14 +26,14 @@ trait FileUtils {
     sourceDir + (if (sourceDir.endsWith(File.separator)) "" else File.separator) + fileName
   }
 
-  def findMainClass(implicit binDir: String): Option[String] = {
+  def findMainClass(binDir: String): Option[String] = {
 
     val validBinDir = if (binDir.endsWith(File.separator)) binDir else binDir + File.separator
     implicit val classLoader = new java.net.URLClassLoader(Array(
         new URL(s"file://$validBinDir")
         ))
 
-    val filesWithMainMethod = scanFilesInDir(binDir, fileName => fileName.endsWith(".class") && containsMain(fileName))
+    val filesWithMainMethod = scanFilesInDir(binDir, fileName => fileName.endsWith(".class") && containsMain(fileName, binDir))
     if (filesWithMainMethod.length == 0) {
       println("Error: No files with main class found")
       None
@@ -43,11 +43,11 @@ trait FileUtils {
       filesWithMainMethod foreach (println(_))
       None
     } else
-      Some(getClassNameFromFileName(filesWithMainMethod.head))
+      Some(getClassNameFromFileName(filesWithMainMethod.head, binDir))
   }
 
-  def containsMain(fileName: String)(implicit binDir: String, classLoader: ClassLoader) = {
-    val className = getClassNameFromFileName(fileName)
+  def containsMain(fileName: String, binDir: String)(implicit classLoader: ClassLoader) = {
+    val className = getClassNameFromFileName(fileName, binDir)
     try {
       val fileClass = classLoader.loadClass(className)
       fileClass.getMethods.find { m => m.getName == "main" && Modifier.isStatic(m.getModifiers) }.nonEmpty
@@ -59,7 +59,7 @@ trait FileUtils {
     }
   }
 
-  def getClassNameFromFileName(fileName: String)(implicit binDir: String) = {
+  def getClassNameFromFileName(fileName: String, binDir: String) = {
     val fileNamePattern = s"$binDir${File.separator}?([^\\.]+)\\.class".r
     fileName match {
       case fileNamePattern(className) =>
