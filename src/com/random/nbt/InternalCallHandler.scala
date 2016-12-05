@@ -68,12 +68,29 @@ class InternalCallHandler(methodName: String, callParams: Array[String]) extends
   def resolveDependenciesAsJarPaths() = {
     val jarPaths = (Context.get("dependencies") match {
       case Some(compileDependencies) => parseDependencies(compileDependencies.asInstanceOf[Array[String]]) flatMap { case (org, module) =>
-        ivyHelper.getLastLocalVersionFilePath(org, module)
+        ivyHelper.getLastLocalVersionFilePath(org, module) match {
+          case jar@Some(s:String) => jar
+          case None => resolveJarPathUsingScalaMajorMinorVersion(org, module)
+        }
       }
       case None => Nil
     }) mkString(":")
     println("Setting dependenciesAsJarPaths: " + jarPaths)
     Context.set("dependenciesAsJarPaths", jarPaths)
+  }
+
+  def resolveJarPathUsingScalaMajorMinorVersion(org: String, module: String) = {
+    getScalaMajorMinorVersion flatMap { scalaMajorMinorVersion =>
+      println(s"Not able to resolve dependency: $org:$module, trying $org:${module}_${scalaMajorMinorVersion}")
+      ivyHelper.getLastLocalVersionFilePath(org, s"${module}_${scalaMajorMinorVersion}")
+    }
+  }
+
+  def getScalaMajorMinorVersion = {
+    Context.getString("scalaVersion") map { scalaVersion =>
+      val parts = scalaVersion.split("\\.")
+      s"${parts(0)}.${parts(1)}"
+    }
   }
 
   private def parseDependencies(rawDependencies: Seq[String]) = {
