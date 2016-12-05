@@ -58,8 +58,9 @@ class PhaseExecutor {
     Try {
       Process(refinedCmdLine, new java.io.File(workingDir)).!!
     } match {
-      case Success(output) => println(output)
+      case Success(output: String) if output.nonEmpty => println(output)
       case Failure(ex) => println(ex.getMessage)
+      case _ =>
     }
   }
 
