@@ -14,11 +14,11 @@ object ScalaCompiler {
   val scalaReflect = "scala-reflect"
 }
 
-class ScalaCompiler(implicit val context: Map[String, Any]) extends FileUtils {
+class ScalaCompiler extends FileUtils {
   import ScalaCompiler._
 
-  def compile(sourceDir: String, destDir: String)(implicit context: Map[String, Any]) = {
-    val scalaVersion = context.get("scalaVersion").asInstanceOf[Option[String]]
+  def compile(sourceDir: String, destDir: String) = {
+    val scalaVersion = Context.get("scalaVersion").asInstanceOf[Option[String]]
     val mayBeScalaCompilerVersion = scalaVersion.orElse(ivyHelper.getLastLocalVersion(org, scalaCompiler))
     val mayBeScalaReflectVersion = scalaVersion.orElse(ivyHelper.getLastLocalVersion(org, scalaReflect))
     (mayBeScalaCompilerVersion, mayBeScalaReflectVersion) match {
@@ -43,27 +43,6 @@ class ScalaCompiler(implicit val context: Map[String, Any]) extends FileUtils {
     compileUsing(sourceDir, destDir, classLoader)
   }
 
-  def getDependenciesAsJarPaths() = {
-    context.get("compileDependencies") match {
-      case Some(compileDependencies) => parseDependencies(compileDependencies.asInstanceOf[Array[String]]) flatMap { case (org, module) =>
-        ivyHelper.getLastLocalVersionFilePath(org, module)
-      }
-      case None => Nil
-    }
-  }
-
-  def parseDependencies(rawDependencies: Seq[String]) = {
-    rawDependencies flatMap { d =>
-      val dParts = d.split(":")
-      if (dParts.length < 2) {
-        println(s"Error: can't parse dependency $d")
-        None
-      } else {
-        Some((dParts(0), dParts(1)))
-      }
-    }
-  }
-
   def compileUsing(sourceDir: String, destDir: String, classLoader: ClassLoader) = {
 
     val settingsClass = classLoader.loadClass("scala.tools.nsc.Settings")
@@ -83,7 +62,7 @@ class ScalaCompiler(implicit val context: Map[String, Any]) extends FileUtils {
   }
 
   def addCompileArguments(destDir: String, settingsClass: Class[_], settingsInstance: AnyRef, classLoader: ClassLoader) = {
-    val classPath = getDependenciesAsJarPaths.mkString(":")
+    val classPath = Context.get("dependenciesAsJarPaths").getOrElse("")
     val cpArgs = s"""-classpath "$classPath" -d $destDir"""
     println(s"Passing additional dependencies for compiler: $cpArgs")
     val processArgumentStringMethod = settingsClass.getMethod("processArgumentString", classLoader.loadClass("java.lang.String"))

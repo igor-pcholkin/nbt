@@ -1,20 +1,20 @@
 package com.random.nbt
 
-import scala.collection.mutable.Map
-import scala.util.Try
 import scala.util.Failure
 import scala.util.Success
+import scala.util.Try
 
 object InternalCallHandler {
   val ivyHelper = new IvyHelper()
 }
 
-class InternalCallHandler(methodName: String, callParams: Array[String])(implicit val context: Map[String, Any]) extends FileUtils {
+class InternalCallHandler(methodName: String, callParams: Array[String]) extends FileUtils {
   import InternalCallHandler._
 
   def compile() = {
-    val sourceDir = if (callParams.length > 0) callParams(0) else createAbsolutePath(context("currentDir").asInstanceOf[String], "src")
-    val destDir = if (callParams.length > 1) callParams(1) else createAbsolutePath(context("currentDir").asInstanceOf[String], "bin")
+    val currentDir = Context.getString("projectDir", "currentDir").getOrElse(".")
+    val sourceDir = if (callParams.length > 0) callParams(0) else createAbsolutePath(currentDir, "src")
+    val destDir = if (callParams.length > 1) callParams(1) else createAbsolutePath(currentDir, "bin")
     println("Compile source dir: " + sourceDir)
     new ScalaCompiler().compile(sourceDir, destDir)
   }
@@ -22,16 +22,16 @@ class InternalCallHandler(methodName: String, callParams: Array[String])(implici
   def findMainClass(): Unit = {
     val binDir = callParams(0)
     println("Finding main class in bin dir: " + binDir)
-    context += ("mainClass" -> findMainClass(binDir).getOrElse(""))
+    Context.set("mainClass", findMainClass(binDir).getOrElse(""))
   }
 
   def findScalaLibrary(): Unit = {
-    val mayBeScalaVersion = context.get("scalaVersion").asInstanceOf[Option[String]].
+    val mayBeScalaVersion = Context.getString("scalaVersion").
       orElse(ivyHelper.getLastLocalVersion("org.scala-lang", "scala-library"))
     mayBeScalaVersion match {
       case Some(scalaVersion) =>
         val scalaLibPath = ivyHelper.getModuleJarFileName("org.scala-lang", "scala-library", scalaVersion)
-        context += ("scalaLibrary" -> scalaLibPath)
+        Context.set("scalaLibrary", scalaLibPath)
       case None => println("Error: no scala library is found")
     }
   }
@@ -65,15 +65,43 @@ class InternalCallHandler(methodName: String, callParams: Array[String])(implici
     println("Module file name: " + ivyHelper.getModuleJarFileName(org, module, version))
   }
 
-  def setScalaVersion(): Unit = {
-    val scalaVersion = callParams(0)
-    println(s"Setting scala version to: $scalaVersion")
-    context += ("scalaVersion" -> scalaVersion)
+  def resolveDependenciesAsJarPaths() = {
+    val jarPaths = (Context.get("dependencies") match {
+      case Some(compileDependencies) => parseDependencies(compileDependencies.asInstanceOf[Array[String]]) flatMap { case (org, module) =>
+        ivyHelper.getLastLocalVersionFilePath(org, module)
+      }
+      case None => Nil
+    }) mkString(":")
+    println("Setting dependenciesAsJarPaths: " + jarPaths)
+    Context.set("dependenciesAsJarPaths", jarPaths)
   }
 
-  def setCompileDependencies() = {
-    val dependencies = callParams.mkString.split("[\\s,]+")
-    context += ("compileDependencies" -> dependencies)
+  private def parseDependencies(rawDependencies: Seq[String]) = {
+    rawDependencies flatMap { d =>
+      val dParts = d.split(":")
+      if (dParts.length < 2) {
+        println(s"Error: can't parse dependency $d")
+        None
+      } else {
+        Some((dParts(0), dParts(1)))
+      }
+    }
+  }
+
+  def setVar() = {
+    val rawAssignment = callParams.mkString
+    val assignment = rawAssignment.split("=")
+    if (assignment.length == 2) {
+      val (variable, value) = (assignment(0).trim, assignment(1).trim)
+      println(s"Setting var: $variable = $value")
+      if (value.contains(",")) {
+        Context.set(variable, value.split("[,\\s]+"))
+      } else {
+        Context.set(variable, value)
+      }
+    } else {
+      println(s"Invalid assignment: $rawAssignment")
+    }
   }
 
   def handle() = {
@@ -81,7 +109,7 @@ class InternalCallHandler(methodName: String, callParams: Array[String])(implici
       getClass.getMethod(methodName)
     } match {
       case Success(method) => method.invoke(this)
-      case Failure(ex)     => println(s"Error when calling $methodName: ${ex.getMessage}")
+      case Failure(ex)     => println(s"Error when resolving $methodName: ${ex.getMessage}")
     }
   }
 
