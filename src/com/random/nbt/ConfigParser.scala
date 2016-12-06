@@ -4,15 +4,14 @@ import scala.io.Source
 import java.io.FileReader
 import scala.util.parsing.combinator.JavaTokenParsers
 
-case class Phase(name: String, cmdLines: List[String], description: Option[String], dependsOn: List[DependantPhase], calls: List[String])
-case class DependantPhase(name: String)
+case class Phase(name: String, cmdLines: List[String], description: Option[String], dependsOn: List[String], calls: List[String])
 
 class Attribute
 
 case class Command(cmdLine: String) extends Attribute
 case class Call(lines: String) extends Attribute
 case class Description(value: String) extends Attribute
-case class Depends(phases: List[DependantPhase]) extends Attribute
+case class DependsOn(phases: List[String]) extends Attribute
 
 class ConfigParser extends JavaTokenParsers {
 
@@ -21,6 +20,8 @@ class ConfigParser extends JavaTokenParsers {
   override val whiteSpace = """[ \t]+""".r
 
   def str = ("""([^\n\r])+""").r ^^ { s => s.trim() }
+
+  def word = ("""([^\n\r \t])+""").r
 
   def delimitedStr = ("""([^\n\r,])+""").r ^^ { s => s.trim() }
 
@@ -32,13 +33,13 @@ class ConfigParser extends JavaTokenParsers {
     Description(value)
   }
 
-  def dependsOn = ("depends on" ~ ":") ~> rep1sep(delimitedStr, ",") ^^ { values =>
-    Depends(values.map(DependantPhase(_)))
+  def dependsOn = "depends on" ~ ":" ~> rep1sep(delimitedStr, ",") ^^ { values =>
+    DependsOn(values)
   }
 
-  def command = ("command" ~ ":") ~> str ^^ { s => Command(s) }
+  def command = "command" ~ ":" ~> str ^^ { s => Command(s) }
 
-  def call = ("call" ~ ":") ~> str ^^ { params =>
+  def call = "call" ~ ":" ~> str ^^ { params =>
     Call(params)
   }
 
@@ -47,7 +48,7 @@ class ConfigParser extends JavaTokenParsers {
   def getCommandLines(attributes:List[Attribute]) = attributes collect { case cmd: Command => cmd.cmdLine }
   def getCalls(attributes:List[Attribute]) = attributes collect { case c: Call => c.lines }
   def getValueOfFirstDescription(attributes:List[Attribute]) = (attributes collect { case d: Description => d.value }).headOption
-  def getFirstDependsOnList(attributes:List[Attribute]) = (attributes collect { case d: Depends => d.phases }).headOption.getOrElse(Nil)
+  def getFirstDependsOnList(attributes:List[Attribute]) = (attributes collect { case d: DependsOn => d.phases }).headOption.getOrElse(Nil)
 
   def phase = (phaseNameHeader ~ rep(attribute)) <~ rep1(eol) ^^ {
     case name ~ attributes =>

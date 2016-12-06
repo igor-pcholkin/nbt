@@ -5,7 +5,7 @@ import scala.util.Try
 import scala.util.Failure
 import scala.util.Success
 
-class PhaseExecutor {
+class PhaseExecutor extends FileUtils {
   def runPhase(phaseName: String)(implicit phases: List[Phase]) = {
     phases.find(_.name == phaseName) match {
       case Some(phase) => execute(phase)
@@ -15,10 +15,10 @@ class PhaseExecutor {
 
   def executeDependantPhases(phase: Phase)(implicit phases: List[Phase]) = {
     println(s"Executing dependency phases: ${phase.dependsOn.mkString(",")} on phase ${phase.name}")
-    phase.dependsOn map { dependantPhase =>
-      phases.find(_.name == dependantPhase.name) match {
+    phase.dependsOn map { dependsOnPhase =>
+      phases.find(_.name == dependsOnPhase) match {
         case Some(resolvedPhase) => execute(resolvedPhase)
-        case None => println(s"Error: No dependant phase found: ${dependantPhase.name}")
+        case None => println(s"Error: No dependant phase found: ${dependsOnPhase}")
       }
     }
   }
@@ -32,7 +32,7 @@ class PhaseExecutor {
   def executeInternalCalls(phase: Phase) = {
     if (phase.calls.nonEmpty) {
       phase.calls map { call =>
-        val callLine = resolveVarsInCommmandLine(call)
+        val callLine = resolveVarsIn(call)
         if (callLine.contains("=")) {
           new InternalCallHandler("=", Array(callLine)).setVar()
         } else {
@@ -51,7 +51,7 @@ class PhaseExecutor {
 
   def executeCmdLine(cmdLine: String) = {
     import sys.process._
-    val refinedCmdLine = resolveVarsInCommmandLine(cmdLine)
+    val refinedCmdLine = resolveVarsIn(cmdLine)
     println(s"Executing command: $refinedCmdLine")
     val workingDir = Context.getString("projectDir", "currentDir").getOrElse(".")
     println(s"Running in working dir: $workingDir")
@@ -64,9 +64,9 @@ class PhaseExecutor {
     }
   }
 
-  def resolveVarsInCommmandLine(cmdLine: String) = {
-    if (cmdLine.contains("$")) {
-      Context.getKeys.foldLeft(cmdLine) { (cmdLine, key) =>
+  def resolveVarsIn(line: String) = {
+    if (line.contains("$")) {
+      Context.getKeys.foldLeft(line) { (cmdLine, key) =>
         val value = Context.get(key) match {
           case Some(value: String) => value
           case Some(arr: Array[String]) => arr.mkString(":")
@@ -75,7 +75,7 @@ class PhaseExecutor {
         cmdLine.replace("$" + s"$key", value)
       }
     } else {
-      cmdLine
+      line
     }
   }
 
