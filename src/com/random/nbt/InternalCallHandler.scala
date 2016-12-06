@@ -121,9 +121,6 @@ class InternalCallHandler(methodName: String, callParams: Array[String]) extends
     }
   }
 
-  def recencyCheck() = {
-  }
-
   def handle() = {
     Try {
       getClass.getMethod(methodName)
