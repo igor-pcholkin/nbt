@@ -69,7 +69,6 @@ class PhaseExecutor extends FileUtils {
       Context.getKeys.foldLeft(line) { (cmdLine, key) =>
         val value = Context.get(key) match {
           case Some(value: String) => value
-          case Some(arr: Array[String]) => arr.mkString(":")
           case _ => ""
         }
         cmdLine.replace("$" + s"$key", value)

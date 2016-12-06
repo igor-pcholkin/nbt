@@ -3,6 +3,11 @@ package com.random.nbt
 import scala.util.Failure
 import scala.util.Success
 import scala.util.Try
+import java.io.File
+import java.io.StringWriter
+import java.io.FileWriter
+import java.io.PrintWriter
+import scala.io.Source
 
 object InternalCallHandler {
   val ivyHelper = new IvyHelper()
@@ -67,7 +72,7 @@ class InternalCallHandler(methodName: String, callParams: Array[String]) extends
 
   def resolveDependenciesAsJarPaths() = {
     val jarPaths = (Context.get("dependencies") match {
-      case Some(compileDependencies) => parseDependencies(compileDependencies.asInstanceOf[Array[String]]) flatMap { case (org, module) =>
+      case Some(compileDependencies) => parseDependencies(compileDependencies.asInstanceOf[Seq[String]]) flatMap { case (org, module) =>
         ivyHelper.getLastLocalVersionFilePath(org, module) match {
           case jar@Some(s:String) => jar
           case None => resolveJarPathUsingScalaMajorMinorVersion(org, module)
@@ -119,6 +124,30 @@ class InternalCallHandler(methodName: String, callParams: Array[String]) extends
     } else {
       println(s"Invalid assignment: $rawAssignment")
     }
+  }
+
+  def recencyCheck() = {
+    val srcDir = callParams(0)
+    val recentFiles = Context.getString("projectDir", "currentDir") match {
+      case Some(projectDir) =>
+        val cache = new RecencyCache(projectDir)
+        val allSrcDirFiles = getAllSrcDirFiles(srcDir)
+        if (!cache.exists()) {
+          cache.create(allSrcDirFiles)
+          allSrcDirFiles
+        } else {
+          val newFiles = cache.getAllSrcFilesNewerThanInCache(allSrcDirFiles)
+          if (newFiles.length > 0) {
+            cache.recreate(allSrcDirFiles)
+          }
+          newFiles
+        }
+      case None =>
+        println("Error: no project dir set")
+        getAllSrcDirFiles(srcDir)
+    }
+    Context.set("recentFiles-" + srcDir, recentFiles)
+    println(s"Setting recent files: ${recentFiles.mkString(",")}")
   }
 
   def handle() = {

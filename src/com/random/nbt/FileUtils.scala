@@ -27,6 +27,10 @@ trait FileUtils {
     scanFilesInDir(Nil, List(sourceDir))
   }
 
+  def getAllSrcDirFiles(srcDir: String) = {
+    scanFilesInDir(srcDir, _ => true)
+  }
+
   def createAbsolutePath(sourceDir: String, fileName: String) = {
     sourceDir + (if (sourceDir.endsWith(File.separator)) "" else File.separator) + fileName
   }

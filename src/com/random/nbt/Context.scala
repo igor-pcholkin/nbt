@@ -14,7 +14,7 @@ object Context {
 
   def set(name: String, value: String) = internal += (name -> value)
 
-  def set(name: String, values: Array[String]) = internal += (name -> values)
+  def set(name: String, values: Seq[String]) = internal += (name -> values)
 
   def getKeys() = internal.keys
 

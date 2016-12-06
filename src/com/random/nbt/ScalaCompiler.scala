@@ -63,7 +63,7 @@ class ScalaCompiler extends FileUtils {
 
   def addCompileArguments(destDir: String, settingsClass: Class[_], settingsInstance: AnyRef, classLoader: ClassLoader) = {
     val classPath = Context.get("dependenciesAsJarPaths").getOrElse("")
-    val cpArgs = s"""-classpath "$classPath" -d $destDir"""
+    val cpArgs = s"""-classpath "$classPath:$destDir" -d $destDir"""
     println(s"Passing additional dependencies for compiler: $cpArgs")
     val processArgumentStringMethod = settingsClass.getMethod("processArgumentString", classLoader.loadClass("java.lang.String"))
     processArgumentStringMethod.invoke(settingsInstance, cpArgs)
@@ -79,14 +79,22 @@ class ScalaCompiler extends FileUtils {
     val runInstance = runClass.getConstructor(globalClass).newInstance(globalInstance).asInstanceOf[AnyRef]
     val compileMethod = runClass.getMethod("compileSources", classLoader.loadClass("scala.collection.immutable.List"))
     val sources = prepareSources(sourceDir)
-    val runArgs = Array(sources.toList)
-    compileMethod.invoke(runInstance, runArgs: _*)
+    if (sources.length > 0) {
+      val runArgs = Array(sources.toList)
+      compileMethod.invoke(runInstance, runArgs: _*)
+    }
   }
 
-  def prepareSources(sourceDir: String) = scanSourceFilesInDir(sourceDir) map { fileName =>
-    println("Compiling file: " + fileName)
-    val fileContents = Source.fromFile(fileName).getLines().mkString("\n")
-    new BatchSourceFile(fileName, fileContents)
+  def prepareSources(srcDir: String) = {
+    val filesToCompile = Context.get("recentFiles-" + srcDir) match {
+      case Some(files: Seq[_]) => files.asInstanceOf[Seq[String]]
+      case _ => scanSourceFilesInDir(srcDir)
+    }
+    filesToCompile map { fileName =>
+      println("Compiling file: " + fileName)
+      val fileContents = Source.fromFile(fileName).getLines().mkString("\n")
+      new BatchSourceFile(fileName, fileContents)
+    }
   }
 
   def scanSourceFilesInDir(sourceDir: String): List[String] = scanFilesInDir(sourceDir, fileName => fileName.endsWith(".scala"))
