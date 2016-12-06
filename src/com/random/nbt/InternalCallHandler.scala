@@ -128,26 +128,30 @@ class InternalCallHandler(methodName: String, callParams: Array[String]) extends
 
   def recencyCheck() = {
     val srcDir = callParams(0)
+    val binDir = callParams(1)
+    val (updatedSrcFiles, binFiles) = Context.getString("projectDir", "currentDir") match {
+      case Some(projectDir) =>
+        val cache = new RecencyCache(projectDir)
+        val updatedSrcFiles = cache.getUpdatedSrcFiles(srcDir)
+        (updatedSrcFiles, cache.getCachedBinFileEntries)
+      case None =>
+        println("Error: no project dir set")
+        (getAllSourceFiles(srcDir), Nil)
+    }
+    Context.set("updatedSrcFiles-" + srcDir, updatedSrcFiles)
+    Context.set("cachedBinFiles-" + binDir, binFiles)
+    println(s"Setting recent files: ${updatedSrcFiles.mkString(",")}")
+  }
+
+  def updateCacheWithBinEntries() = {
+    val binDir = callParams(0)
     val recentFiles = Context.getString("projectDir", "currentDir") match {
       case Some(projectDir) =>
         val cache = new RecencyCache(projectDir)
-        val allSrcDirFiles = getAllSrcDirFiles(srcDir)
-        if (!cache.exists()) {
-          cache.create(allSrcDirFiles)
-          allSrcDirFiles
-        } else {
-          val newFiles = cache.getAllSrcFilesNewerThanInCache(allSrcDirFiles)
-          if (newFiles.length > 0) {
-            cache.recreate(allSrcDirFiles)
-          }
-          newFiles
-        }
-      case None =>
-        println("Error: no project dir set")
-        getAllSrcDirFiles(srcDir)
+        val allBinDirFiles = getAllDirFiles(binDir)
+        cache.refresh(Some(cache.getCachedSrcFileEntries), Some(allBinDirFiles))
+      case None => println("Error: no project dir set")
     }
-    Context.set("recentFiles-" + srcDir, recentFiles)
-    println(s"Setting recent files: ${recentFiles.mkString(",")}")
   }
 
   def handle() = {

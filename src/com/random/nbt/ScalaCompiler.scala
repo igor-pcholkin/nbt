@@ -58,7 +58,7 @@ class ScalaCompiler extends FileUtils {
     val globalContructor = globalClass.getConstructor(settingsClass, abstractReporterClass)
     val globalInstance = globalContructor.newInstance(settingsInstance, reporterInstance).asInstanceOf[AnyRef]
 
-    invokeCompileMethod(sourceDir, globalClass, globalInstance, classLoader)
+    invokeCompileMethod(sourceDir, destDir: String, globalClass, globalInstance, classLoader)
   }
 
   def addCompileArguments(destDir: String, settingsClass: Class[_], settingsInstance: AnyRef, classLoader: ClassLoader) = {
@@ -69,7 +69,7 @@ class ScalaCompiler extends FileUtils {
     processArgumentStringMethod.invoke(settingsInstance, cpArgs)
   }
 
-  def invokeCompileMethod(sourceDir: String, globalClass: Class[_], globalInstance: AnyRef, classLoader: ClassLoader) = {
+  def invokeCompileMethod(sourceDir: String, binDir: String, globalClass: Class[_], globalInstance: AnyRef, classLoader: ClassLoader) = {
     val runClass = globalInstance.getClass().getClasses.find { c =>
       c.getName.contains("Run")
     } match {
@@ -78,24 +78,40 @@ class ScalaCompiler extends FileUtils {
     }
     val runInstance = runClass.getConstructor(globalClass).newInstance(globalInstance).asInstanceOf[AnyRef]
     val compileMethod = runClass.getMethod("compileSources", classLoader.loadClass("scala.collection.immutable.List"))
-    val sources = prepareSources(sourceDir)
+    val sources = prepareSources(sourceDir, binDir)
     if (sources.length > 0) {
       val runArgs = Array(sources.toList)
       compileMethod.invoke(runInstance, runArgs: _*)
     }
   }
 
-  def prepareSources(srcDir: String) = {
-    val filesToCompile = Context.get("recentFiles-" + srcDir) match {
-      case Some(files: Seq[_]) => files.asInstanceOf[Seq[String]]
-      case _ => scanSourceFilesInDir(srcDir)
-    }
-    filesToCompile map { fileName =>
+  def prepareSources(srcDir: String, binDir: String) = {
+    findFilesToCompile(srcDir, binDir) map { fileName =>
       println("Compiling file: " + fileName)
       val fileContents = Source.fromFile(fileName).getLines().mkString("\n")
       new BatchSourceFile(fileName, fileContents)
     }
   }
 
-  def scanSourceFilesInDir(sourceDir: String): List[String] = scanFilesInDir(sourceDir, fileName => fileName.endsWith(".scala"))
+  def findFilesToCompile(srcDir: String, binDir: String) = {
+    if (isMissingAnyBinaryFile(binDir)) {
+      println("Some binaries are missing: (re)compiling everything")
+      getAllSourceFiles(srcDir)
+    } else {
+      Context.get("updatedSrcFiles-" + srcDir) match {
+        case Some(files: Seq[_]) => files.asInstanceOf[Seq[String]]
+        case _                   => getAllSourceFiles(srcDir)
+      }
+    }
+  }
+
+  def isMissingAnyBinaryFile(binDir: String) = {
+    Context.get("cachedBinFiles-" + binDir) match {
+      case Some(files: Seq[_]) =>
+        val cachedBinFiles = files.asInstanceOf[Seq[String]]
+        cachedBinFiles.exists(!new File(_).exists())
+      case _ => true
+    }
+  }
+
 }
