@@ -1,23 +1,22 @@
 package com.random.nbt
 
+import java.io.File
+
 import scala.util.Failure
 import scala.util.Success
 import scala.util.Try
-import java.io.File
-import java.io.StringWriter
-import java.io.FileWriter
-import java.io.PrintWriter
 import scala.io.Source
 
 object InternalCallHandler {
   val ivyHelper = new IvyHelper()
+  def getProjectDir = Context.getString("projectDir", "currentDir")
 }
 
 class InternalCallHandler(methodName: String, callParams: Array[String]) extends FileUtils {
   import InternalCallHandler._
 
   def compile() = {
-    val currentDir = Context.getString("projectDir", "currentDir").getOrElse(".")
+    val currentDir = getProjectDir.getOrElse(".")
     val sourceDir = if (callParams.length > 0) callParams(0) else createAbsolutePath(currentDir, "src")
     val destDir = if (callParams.length > 1) callParams(1) else createAbsolutePath(currentDir, "bin")
     println("Compile source dir: " + sourceDir)
@@ -129,11 +128,10 @@ class InternalCallHandler(methodName: String, callParams: Array[String]) extends
   def recencyCheck() = {
     val srcDir = callParams(0)
     val binDir = callParams(1)
-    val (updatedSrcFiles, binFiles) = Context.getString("projectDir", "currentDir") match {
+    val (updatedSrcFiles, binFiles) = getProjectDir match {
       case Some(projectDir) =>
-        val cache = new RecencyCache(projectDir)
-        val updatedSrcFiles = cache.getUpdatedSrcFiles(srcDir)
-        (updatedSrcFiles, cache.getCachedBinFileEntries)
+        val updatedSrcFiles = RecencyCache.getUpdatedAndDependingSrcFiles(srcDir)
+        (updatedSrcFiles, RecencyCache.getCachedBinFileEntries)
       case None =>
         println("Error: no project dir set")
         (getAllSourceFiles(srcDir), Nil)
@@ -143,14 +141,36 @@ class InternalCallHandler(methodName: String, callParams: Array[String]) extends
     println(s"Setting recent files: ${updatedSrcFiles.mkString(",")}")
   }
 
-  def updateCacheWithBinEntries() = {
-    val binDir = callParams(0)
-    val recentFiles = Context.getString("projectDir", "currentDir") match {
+  def updateCacheWithBinEntriesAndSourceDependencies() = {
+    val srcDir = callParams(0)
+    val binDir = callParams(1)
+    val recentFiles =  getProjectDir match {
       case Some(projectDir) =>
-        val cache = new RecencyCache(projectDir)
         val allBinDirFiles = getAllDirFiles(binDir)
-        cache.refresh(Some(cache.getCachedSrcFileEntries), Some(allBinDirFiles))
+        val srcDependencies = getAllSrcDependencies(srcDir)
+        println(s"Determine source dependencies: $srcDependencies")
+        RecencyCache.refresh(Some(RecencyCache.getCachedSrcFileEntries), Some(allBinDirFiles), Some(srcDependencies))
       case None => println("Error: no project dir set")
+    }
+  }
+
+  private def getAllSrcDependencies(srcDir: String) = {
+    val srcFiles = getAllSourceFiles(srcDir)
+    val dependingToDependencies = (srcFiles map { srcFile =>
+      (srcFile , getImports(srcFile))
+    })
+    scala.collection.mutable.Map[String, Seq[String]]() ++ (( dependingToDependencies flatMap { case (depending, imports) =>
+      imports map { imp => (getSourceFileNameFromClassName(imp, srcDir), depending) }
+    }) groupBy (_._1) map { e => e._1 -> (e._2 map { kv => kv._2 }) })
+  }
+
+  def getImports(srcFile: String) = {
+    Source.fromFile(srcFile).getLines() flatMap { line =>
+      val importPattern = "import ([^\\n]*)".r
+      line match {
+        case importPattern(dependency) => Some(dependency)
+        case _ => None
+      }
     }
   }
 

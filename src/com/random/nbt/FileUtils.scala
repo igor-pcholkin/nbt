@@ -80,4 +80,8 @@ trait FileUtils {
     }
   }
 
+  def getSourceFileNameFromClassName(className: String, srcDir: String) = {
+    createAbsolutePath(srcDir, className.replace(".", String.valueOf(File.separator)) + ".scala")
+  }
+
 }
