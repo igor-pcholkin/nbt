@@ -87,23 +87,32 @@ object RecencyCache extends FileUtils {
   def getUpdatedAndDependingSrcFiles(srcDir: String) = {
     val allSrcDirFiles = getAllSourceFiles(srcDir)
     if (exists()) {
-      val newFiles = getAllSrcFilesNewerThanInCache(allSrcDirFiles)
-      if (newFiles.length > 0) {
+      val newUpdatedSrcFiles = getAllSrcFilesNewerThanInCache(allSrcDirFiles)
+      if (newUpdatedSrcFiles.length > 0) {
         refresh(Some(allSrcDirFiles))
       }
-      val dependingSrcFiles = getAllDependingSrcFiles(newFiles)
-      newFiles ++ dependingSrcFiles
+      val dependingSrcFiles = getAllDependingSrcFiles(newUpdatedSrcFiles)
+      newUpdatedSrcFiles ++ dependingSrcFiles
     } else {
       create(allSrcDirFiles)
       allSrcDirFiles
     }
   }
 
-  private def getAllDependingSrcFiles(srcFiles: Seq[String]) = {
+  private def getAllDependingSrcFiles(newUpdatedSrcFiles: Seq[String]) = {
     for {
-      srcFile <- srcFiles
-      depending <- cachedSrcDependencies.getOrElse(srcFile, Nil)
-    } yield (depending)
+      srcFile <- newUpdatedSrcFiles
+      dependingFile <- getDependingFiles(srcFile)
+    } yield dependingFile
+  }
+
+  private def getDependingFiles(srcFile: String) = {
+    cachedSrcDependencies.getOrElse(srcFile, Nil) ++ getDependingByTheSamePackage(srcFile)
+  }
+
+  private def getDependingByTheSamePackage(srcFile: String) = {
+    val samePackage = new File(srcFile).getParentFile.getAbsolutePath
+    getAllDirectSourceFiles(samePackage).filterNot(_ == srcFile)
   }
 
   private def getAllSrcFilesNewerThanInCache(allSrcDirFiles: Seq[String]) = {

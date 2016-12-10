@@ -13,14 +13,13 @@ trait FileUtils {
         addedFiles
       } else {
         val sourceDir = nonProcessedDirs.head
-        val dirEntryNames = new File(sourceDir).list()
-        if (dirEntryNames == null) {
-          scanFilesInDir(addedFiles, nonProcessedDirs.tail)
-        } else {
-          val srcDirEntriesFullNames = dirEntryNames map (createAbsolutePath(sourceDir, _))
-          val (srcDirDirs, srcDirFiles) = srcDirEntriesFullNames.partition ( new File(_).isDirectory )
-          val scalaFiles = srcDirEntriesFullNames filter fileFilter
-          scanFilesInDir(addedFiles ++ scalaFiles, nonProcessedDirs.tail ++ srcDirDirs)
+        new File(sourceDir).list() match {
+          case null => scanFilesInDir(addedFiles, nonProcessedDirs.tail)
+          case dirEntryNames =>
+            val srcDirEntriesFullNames = dirEntryNames map (createAbsolutePath(sourceDir, _))
+            val (srcDirDirs, srcDirFiles) = srcDirEntriesFullNames.partition ( new File(_).isDirectory )
+            val scalaFiles = srcDirEntriesFullNames filter fileFilter
+            scanFilesInDir(addedFiles ++ scalaFiles, nonProcessedDirs.tail ++ srcDirDirs)
         }
       }
     }
@@ -32,6 +31,16 @@ trait FileUtils {
   }
 
   def getAllSourceFiles(sourceDir: String): List[String] = scanFilesInDir(sourceDir, fileName => fileName.endsWith(".scala"))
+
+  def getAllDirectSourceFiles(sourceDir: String) = {
+    new File(sourceDir).list() match
+    {
+      case null => Array[String]()
+      case files => files.collect { case fileName if fileName.endsWith(".scala") =>
+        createAbsolutePath(sourceDir, fileName)
+      }
+    }
+  }
 
   def createAbsolutePath(sourceDir: String, fileName: String) = {
     sourceDir + (if (sourceDir.endsWith(File.separator)) "" else File.separator) + fileName

@@ -156,10 +156,10 @@ class InternalCallHandler(methodName: String, callParams: Array[String]) extends
 
   private def getAllSrcDependencies(srcDir: String) = {
     val srcFiles = getAllSourceFiles(srcDir)
-    val dependingToDependencies = (srcFiles map { srcFile =>
-      (srcFile , getImports(srcFile))
+    val importsGroupedByFile = (srcFiles map { srcFile =>
+      (srcFile, getImports(srcFile))
     })
-    scala.collection.mutable.Map[String, Seq[String]]() ++ (( dependingToDependencies flatMap { case (depending, imports) =>
+    scala.collection.mutable.Map[String, Seq[String]]() ++ (( importsGroupedByFile flatMap { case (depending, imports) =>
       imports map { imp => (getSourceFileNameFromClassName(imp, srcDir), depending) }
     }) groupBy (_._1) map { e => e._1 -> (e._2 map { kv => kv._2 }) })
   }
