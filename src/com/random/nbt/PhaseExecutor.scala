@@ -4,21 +4,22 @@ import java.io.File
 import scala.util.Try
 import scala.util.Failure
 import scala.util.Success
+import com.typesafe.scalalogging.LazyLogging
 
-class PhaseExecutor extends FileUtils {
+class PhaseExecutor extends FileUtils with LazyLogging {
   def runPhase(phaseName: String)(implicit phases: List[Phase]) = {
     phases.find(_.name == phaseName) match {
       case Some(phase) => execute(phase)
-      case None => println(s"Error: No such phase found: ${phaseName}")
+      case None => logger.error(s"No such phase found: ${phaseName}")
     }
   }
 
   def executeDependantPhases(phase: Phase)(implicit phases: List[Phase]) = {
-    println(s"Executing dependency phases: ${phase.dependsOn.mkString(",")} on phase ${phase.name}")
+    logger.info(s"Executing dependency phases: ${phase.dependsOn.mkString(",")} on phase ${phase.name}")
     phase.dependsOn map { dependsOnPhase =>
       phases.find(_.name == dependsOnPhase) match {
         case Some(resolvedPhase) => execute(resolvedPhase)
-        case None => println(s"Error: No dependant phase found: ${dependsOnPhase}")
+        case None => logger.error(s"No depending phase found: ${dependsOnPhase}")
       }
     }
   }
@@ -52,14 +53,14 @@ class PhaseExecutor extends FileUtils {
   def executeCmdLine(cmdLine: String) = {
     import sys.process._
     val refinedCmdLine = resolveVarsIn(cmdLine)
-    println(s"Executing command: $refinedCmdLine")
+    logger.info(s"Executing command: $refinedCmdLine")
     val workingDir = Context.getString("projectDir", "currentDir").getOrElse(".")
-    println(s"Running in working dir: $workingDir")
+    logger.info(s"Running in working dir: $workingDir")
     Try {
       Process(refinedCmdLine, new java.io.File(workingDir)).!!
     } match {
       case Success(output: String) if output.nonEmpty => println(output)
-      case Failure(ex) => println(ex.getMessage)
+      case Failure(ex) => logger.error(ex.getMessage)
       case _ =>
     }
   }

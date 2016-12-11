@@ -20,13 +20,13 @@ class InternalCallHandler(methodName: String, callParams: Array[String]) extends
     val currentDir = getProjectDir.getOrElse(".")
     val sourceDir = if (callParams.length > 0) callParams(0) else createAbsolutePath(currentDir, "src")
     val destDir = if (callParams.length > 1) callParams(1) else createAbsolutePath(currentDir, "bin")
-    //logger.info("Compile source dir: " + sourceDir)
+    logger.info("Compile source dir: " + sourceDir)
     new ScalaCompiler().compile(sourceDir, destDir)
   }
 
   def findMainClass(): Unit = {
     val binDir = callParams(0)
-    println("Finding main class in bin dir: " + binDir)
+    logger.info("Finding main class in bin dir: " + binDir)
     Context.set("mainClass", findMainClass(binDir).getOrElse(""))
   }
 
@@ -37,21 +37,21 @@ class InternalCallHandler(methodName: String, callParams: Array[String]) extends
       case Some(scalaVersion) =>
         val scalaLibPath = ivyHelper.getModuleJarFileName("org.scala-lang", "scala-library", scalaVersion)
         Context.set("scalaLibrary", scalaLibPath)
-      case None => println("Error: no scala library is found")
+      case None => logger.error("No scala library is found")
     }
   }
 
   def listLocalRevisions(): Unit = {
     val org = callParams(0)
     val module = callParams(1)
-    println(s"Searching ivy modules: $org $module")
+    logger.info(s"Searching ivy modules: $org $module")
     ivyHelper.getLocalModuleVersions(org, module) foreach (println(_))
   }
 
   def getAvailableModuleVersions(): Unit = {
     val org = callParams(0)
     val module = callParams(1)
-    println(s"Searching versions for artifact: $org $module")
+    logger.info(s"Searching versions for artifact: $org $module")
     ivyHelper.getAvailableModuleVersions(org, module) foreach (println(_))
   }
 
@@ -59,7 +59,7 @@ class InternalCallHandler(methodName: String, callParams: Array[String]) extends
     val org = callParams(0)
     val module = callParams(1)
     val version = callParams(2)
-    println(s"Resolving version for artifact: $org $module $version")
+    logger.info(s"Resolving version for artifact: $org $module $version")
     ivyHelper.resolveModule(org, module, version)
   }
 
@@ -68,7 +68,7 @@ class InternalCallHandler(methodName: String, callParams: Array[String]) extends
     val module = callParams(1)
     val version = callParams(2)
     val depConfiguration = callParams(3)
-    println(s"Resolving version for artifact: $org $module $version $depConfiguration")
+    logger.info(s"Resolving version for artifact: $org $module $version $depConfiguration")
     ivyHelper.getModuleDependenciesInfo(org, module, version, depConfiguration) foreach (println(_))
   }
 
@@ -89,7 +89,7 @@ class InternalCallHandler(methodName: String, callParams: Array[String]) extends
       }
       case None => Nil
     }) mkString(":")
-    println("Setting dependenciesAsJarPaths: " + jarPaths)
+    logger.info("Setting dependenciesAsJarPaths: " + jarPaths)
     Context.set("dependenciesAsJarPaths", jarPaths)
   }
 
@@ -97,7 +97,7 @@ class InternalCallHandler(methodName: String, callParams: Array[String]) extends
     rawDependencies flatMap { d =>
       val dParts = d.split(":")
       if (dParts.length < 2) {
-        println(s"Error: can't parse dependency $d")
+        logger.error(s"Can't parse dependency $d")
         None
       } else {
         Some((dParts(0), dParts(1)))
@@ -110,14 +110,14 @@ class InternalCallHandler(methodName: String, callParams: Array[String]) extends
     val assignment = rawAssignment.split("=")
     if (assignment.length == 2) {
       val (variable, value) = (assignment(0).trim, assignment(1).trim)
-      println(s"Setting var: $variable = $value")
+      logger.info(s"Setting var: $variable = $value")
       if (value.contains(",")) {
         Context.set(variable, value.split("[,\\s]+"))
       } else {
         Context.set(variable, value)
       }
     } else {
-      println(s"Invalid assignment: $rawAssignment")
+      logger.error(s"Invalid assignment: $rawAssignment")
     }
   }
 
@@ -129,12 +129,12 @@ class InternalCallHandler(methodName: String, callParams: Array[String]) extends
         val updatedSrcFiles = RecencyCache.getUpdatedAndDependingSrcFiles(srcDir)
         (updatedSrcFiles, RecencyCache.getCachedBinFileEntries)
       case None =>
-        println("Error: no project dir set")
+        logger.error("no project dir set")
         (getAllSourceFiles(srcDir), Nil)
     }
     Context.set("updatedSrcFiles-" + srcDir, updatedSrcFiles)
     Context.set("cachedBinFiles-" + binDir, binFiles)
-    println(s"Setting recent files: ${updatedSrcFiles.mkString(",")}")
+    logger.info(s"Setting recent files: ${updatedSrcFiles.mkString(",")}")
   }
 
   def updateCacheWithBinEntriesAndSourceDependencies() = {
@@ -144,9 +144,9 @@ class InternalCallHandler(methodName: String, callParams: Array[String]) extends
       case Some(projectDir) =>
         val allBinDirFiles = getAllDirFiles(binDir)
         val srcDependencies = getAllSrcDependencies(srcDir)
-        println(s"Determine source dependencies: $srcDependencies")
+        logger.info(s"Determine source dependencies: $srcDependencies")
         RecencyCache.refresh(Some(RecencyCache.getCachedSrcFileEntries), Some(allBinDirFiles), Some(srcDependencies))
-      case None => println("Error: no project dir set")
+      case None => logger.error("no project dir set")
     }
   }
 
@@ -175,7 +175,7 @@ class InternalCallHandler(methodName: String, callParams: Array[String]) extends
       getClass.getMethod(methodName)
     } match {
       case Success(method) => method.invoke(this)
-      case Failure(ex)     => println(s"Error when resolving $methodName: ${ex.getMessage}")
+      case Failure(ex)     => logger.error(s"Error when resolving $methodName: ${ex.getMessage}")
     }
   }
 

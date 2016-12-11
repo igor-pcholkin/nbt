@@ -6,6 +6,7 @@ import scala.io.Source
 import scala.annotation.tailrec
 import java.net.URL
 import scala.collection.mutable.Map
+import com.typesafe.scalalogging.LazyLogging
 
 object ScalaCompiler {
   val ivyHelper = new IvyHelper()
@@ -14,7 +15,7 @@ object ScalaCompiler {
   val scalaReflect = "scala-reflect"
 }
 
-class ScalaCompiler extends FileUtils {
+class ScalaCompiler extends FileUtils with LazyLogging {
   import ScalaCompiler._
 
   def compile(sourceDir: String, destDir: String) = {
@@ -26,9 +27,9 @@ class ScalaCompiler extends FileUtils {
         if (scalaCompilerVersion == scalaReflectVersion) {
           compileUsing(sourceDir, destDir, scalaCompilerVersion)
         } else {
-          println(s"Error: latest scala-compiler ($scalaCompilerVersion) and scala-reflect ($scalaReflectVersion) version mismatch")
+          logger.error(s"Error: latest scala-compiler ($scalaCompilerVersion) and scala-reflect ($scalaReflectVersion) version mismatch")
         }
-      case _ => println("Error: No scala compiler or dependant libs found")
+      case _ => logger.error("Error: No scala compiler or dependant libs found")
     }
   }
 
@@ -39,7 +40,7 @@ class ScalaCompiler extends FileUtils {
       new URL(s"file://$jarPath")
     }
     val classLoader = new java.net.URLClassLoader(classPath.toArray)
-    println(s"""Compile using classpath: ${classPath.mkString(":")}""")
+    logger.info(s"""Compile using classpath: ${classPath.mkString(":")}""")
     compileUsing(sourceDir, destDir, classLoader)
   }
 
@@ -64,7 +65,7 @@ class ScalaCompiler extends FileUtils {
   def addCompileArguments(destDir: String, settingsClass: Class[_], settingsInstance: AnyRef, classLoader: ClassLoader) = {
     val classPath = Context.get("dependenciesAsJarPaths").getOrElse("")
     val cpArgs = s"""-classpath "$classPath:$destDir" -d $destDir"""
-    println(s"Passing additional dependencies for compiler: $cpArgs")
+    logger.info(s"Passing additional dependencies for compiler: $cpArgs")
     val processArgumentStringMethod = settingsClass.getMethod("processArgumentString", classLoader.loadClass("java.lang.String"))
     processArgumentStringMethod.invoke(settingsInstance, cpArgs)
   }
@@ -87,7 +88,7 @@ class ScalaCompiler extends FileUtils {
 
   def prepareSources(srcDir: String, binDir: String) = {
     findFilesToCompile(srcDir, binDir) map { fileName =>
-      println("Compiling file: " + fileName)
+      logger.info("Compiling file: " + fileName)
       val fileContents = Source.fromFile(fileName).getLines().mkString("\n")
       new BatchSourceFile(fileName, fileContents)
     }
@@ -95,7 +96,7 @@ class ScalaCompiler extends FileUtils {
 
   def findFilesToCompile(srcDir: String, binDir: String) = {
     if (isMissingAnyBinaryFile(binDir)) {
-      println("Some binaries are missing: (re)compiling everything")
+      logger.info("Some binaries are missing: (re)compiling everything")
       getAllSourceFiles(srcDir)
     } else {
       Context.get("updatedSrcFiles-" + srcDir) match {

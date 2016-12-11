@@ -17,8 +17,9 @@ import org.apache.ivy.core.module.descriptor.DefaultDependencyDescriptor
 import org.apache.ivy.plugins.resolver.DependencyResolver
 import org.apache.ivy.core.report.ResolveReport
 import org.apache.ivy.core.retrieve.RetrieveOptions
+import com.typesafe.scalalogging.LazyLogging
 
-object IvyHelper extends FileUtils {
+object IvyHelper extends FileUtils with LazyLogging {
   val localRepo = resolveLocalRepoPath()
   val cacheResolver = createCacheResolver()
   val ibiblioResolver = createBiblioResolver()
@@ -30,7 +31,7 @@ object IvyHelper extends FileUtils {
         repoCandidate.getAbsolutePath
       } else {
         val fallback = "/tmp"
-        println(s"Error: can't resolve local ivy cache, falling back to $fallback")
+        logger.error(s"Error: can't resolve local ivy cache, falling back to $fallback")
         fallback
       }
   }

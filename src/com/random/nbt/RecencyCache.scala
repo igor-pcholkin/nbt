@@ -4,8 +4,9 @@ import java.io.File
 import java.io.PrintWriter
 import scala.io.Source
 import scala.collection.mutable.Map
+import com.typesafe.scalalogging.LazyLogging
 
-object RecencyCache extends FileUtils {
+object RecencyCache extends FileUtils with LazyLogging {
   val projectDir = InternalCallHandler.getProjectDir.get
   val cacheFile = new File(createAbsolutePath(projectDir, ".nbt-cache"))
 
@@ -15,7 +16,7 @@ object RecencyCache extends FileUtils {
   def exists() = cacheFile.exists()
 
   def read() = {
-    println(s"Reading $cacheFile")
+    logger.info(s"Reading $cacheFile")
     val lines = Source.fromFile(cacheFile).getLines().toList
     val (srcEntries, binEntries) = parseModificationEntries(lines)
     val cachedSrcDependencies = parseSrcDependencies(lines)
@@ -53,7 +54,7 @@ object RecencyCache extends FileUtils {
   def getCachedBinFileEntries = cachedBinFileEntries.keysIterator.toList
 
   def create(allSrcDirFiles: Seq[String], binFiles: Seq[String] = Nil, srcDependencies: Map[String, Seq[String]] = Map[String, Seq[String]]()) = {
-    println(s"Writing $cacheFile")
+    logger.info(s"Writing $cacheFile")
     implicit val printWriter  = new PrintWriter(cacheFile)
     updateModificationCacheEntries(cachedSrcFileEntries, allSrcDirFiles)
     updateModificationCacheEntries(cachedBinFileEntries, binFiles)
@@ -117,7 +118,7 @@ object RecencyCache extends FileUtils {
 
   private def getAllSrcFilesNewerThanInCache(allSrcDirFiles: Seq[String]) = {
     val recentFiles = allSrcDirFiles flatMap { fileName =>
-      println(s"Checking $fileName in cache")
+      logger.info(s"Checking $fileName in cache")
       cachedSrcFileEntries.get(fileName) match {
         case Some(lastModifiedInCache) =>
           if (lastModifiedInCache < new File(fileName).lastModified())

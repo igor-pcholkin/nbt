@@ -3,6 +3,7 @@ package com.random.nbt
 import scala.io.Source
 import java.io.FileReader
 import scala.util.parsing.combinator.JavaTokenParsers
+import com.typesafe.scalalogging.LazyLogging
 
 case class Phase(name: String, cmdLines: List[String], description: Option[String], dependsOn: List[String], calls: List[String])
 
@@ -13,7 +14,7 @@ case class Call(lines: String) extends Attribute
 case class Description(value: String) extends Attribute
 case class DependsOn(phases: List[String]) extends Attribute
 
-class ConfigParser extends JavaTokenParsers {
+class ConfigParser extends JavaTokenParsers with LazyLogging {
 
   lazy val eol = sys.props("line.separator")
 
@@ -64,7 +65,7 @@ class ConfigParser extends JavaTokenParsers {
   def parse(configFile: String = "conf/default.conf") = {
     parseAll(config, new FileReader(configFile)) match {
       case Success(phases, _) => phases
-      case ex @ _             => println(ex); List[Phase]()
+      case ex @ _             => logger.error(ex.toString); List[Phase]()
     }
   }
 }

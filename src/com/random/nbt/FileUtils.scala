@@ -4,8 +4,9 @@ import scala.annotation.tailrec
 import java.io.File
 import java.lang.reflect.Modifier
 import java.net.URL
+import com.typesafe.scalalogging.LazyLogging
 
-trait FileUtils {
+trait FileUtils { self: LazyLogging =>
   def scanFilesInDir(sourceDir: String, fileFilter: String => Boolean): List[String] = {
     @tailrec
     def scanFilesInDir(addedFiles: List[String], nonProcessedDirs: List[String]): List[String] = {
@@ -55,12 +56,12 @@ trait FileUtils {
 
     val filesWithMainMethod = scanFilesInDir(binDir, fileName => fileName.endsWith(".class") && containsMain(fileName, binDir))
     if (filesWithMainMethod.length == 0) {
-      println("Error: No files with main class found")
+      logger.error("No files with main class found")
       None
     }
     else if (filesWithMainMethod.length > 1) {
-      println("Error: There are many classes with a main method: ")
-      filesWithMainMethod foreach (println(_))
+      logger.error("There are many classes with a main method:")
+      filesWithMainMethod foreach (logger.error(_))
       None
     } else
       Some(getClassNameFromFileName(filesWithMainMethod.head, binDir))
@@ -84,7 +85,7 @@ trait FileUtils {
     fileName match {
       case fileNamePattern(className) =>
         className.replace(String.valueOf(File.separator), ".")
-      case _ => println("Error: class file match")
+      case _ => logger.error("class file match")
       ""
     }
   }
