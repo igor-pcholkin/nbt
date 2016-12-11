@@ -12,9 +12,7 @@ object Context {
 
   def getString(names: String*) = get(names: _*) map (_.asInstanceOf[String])
 
-  def set(name: String, value: String) = internal += (name -> value)
-
-  def set(name: String, values: Seq[String]) = internal += (name -> values)
+  def set(name: String, value: Any) = internal += (name -> value)
 
   def getKeys() = internal.keys
 

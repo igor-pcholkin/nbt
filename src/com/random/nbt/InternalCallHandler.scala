@@ -111,11 +111,8 @@ class InternalCallHandler(methodName: String, callParams: Array[String]) extends
     if (assignment.length == 2) {
       val (variable, value) = (assignment(0).trim, assignment(1).trim)
       logger.info(s"Setting var: $variable = $value")
-      if (value.contains(",")) {
-        Context.set(variable, value.split("[,\\s]+"))
-      } else {
-        Context.set(variable, value)
-      }
+      val value2Set = if (value.contains(",")) value.split("[,\\s]+") else value
+      Context.set(variable, value2Set)
     } else {
       logger.error(s"Invalid assignment: $rawAssignment")
     }
