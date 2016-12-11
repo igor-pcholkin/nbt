@@ -15,6 +15,8 @@ import org.apache.ivy.core.resolve.ResolveOptions
 import org.apache.ivy.core.module.descriptor.DefaultModuleDescriptor
 import org.apache.ivy.core.module.descriptor.DefaultDependencyDescriptor
 import org.apache.ivy.plugins.resolver.DependencyResolver
+import org.apache.ivy.core.report.ResolveReport
+import org.apache.ivy.core.retrieve.RetrieveOptions
 
 object IvyHelper extends FileUtils {
   val localRepo = resolveLocalRepoPath()
@@ -62,15 +64,71 @@ class IvyHelper {
   }
 
   def getLocalModuleVersions(org: String, module: String) = {
-    val ivy = createIvy(cacheResolver)
+    implicit val ivy = createIvy(cacheResolver)
 
-    sortVersionsDesc(ivy.listRevisions(org, module))
+    listSortedRevisions(org, module)
+  }
+
+  def getModuleDependenciesInfo(org: String, module: String, revision: String, dependencyConfiguration: String) = {
+    val ivy = createIvy(ibiblioResolver)
+
+    val ro = new ResolveOptions()
+    // this seems to have no impact, if you resolve by module descriptor (in contrast to resolve by ModuleRevisionId)
+    ro.setTransitive(true);
+    // if set to false, nothing will be downloaded
+    ro.setDownload(false);
+
+    // 1st create an ivy module (this always(!) has a "default" configuration already)
+    val md = DefaultModuleDescriptor.newDefaultInstance(
+        ModuleRevisionId.newInstance(org, module+"-envelope", revision)
+    )
+
+    val ri = ModuleRevisionId.newInstance(org, module, revision)
+
+    // don't go transitive here, if you want the single artifact
+    val dd = new DefaultDependencyDescriptor(md, ri, false, false, true)
+
+    // map to master to just get the code jar. See generated ivy module xmls from maven repo
+    // on how configurations are mapped into ivy. Or check
+    // e.g. http://lightguard-jp.blogspot.de/2009/04/ivy-configurations-when-pulling-from.html
+    dd.addDependencyConfiguration("default", dependencyConfiguration)
+    md.addDependency(dd)
+
+    ivy.getResolveEngine.getDependencies(md, ro, new ResolveReport(md))
+
   }
 
   def getAvailableModuleVersions(org: String, module: String) = {
-    val ivy = createIvy(ibiblioResolver)
+    implicit val ivy = createIvy(ibiblioResolver)
 
-    sortVersionsDesc(ivy.listRevisions(org, module))
+    listSortedRevisions(org, module)
+  }
+
+  def listSortedRevisions(org: String, module: String)(implicit ivy: Ivy)  = {
+    val nonSortedRevisions = ivy.listRevisions(org, module) match {
+      case revisions =>
+        if (revisions.isEmpty)
+          listUsingScalaMajorMinorVersion(org, module)
+        else
+          revisions
+    }
+    sortVersionsDesc(nonSortedRevisions)
+  }
+
+  private def listUsingScalaMajorMinorVersion(org: String, module: String)(implicit ivy: Ivy) = {
+    getScalaMajorMinorVersion match {
+      case Some(scalaMajorMinorVersion) =>
+        val augmentedModule = s"${module}_${scalaMajorMinorVersion}"
+        ivy.listRevisions(org, augmentedModule)
+      case None => Array[String]()
+    }
+  }
+
+  private def getScalaMajorMinorVersion = {
+    Context.getString("scalaVersion") map { scalaVersion =>
+      val parts = scalaVersion.split("\\.")
+      s"${parts(0)}.${parts(1)}"
+    }
   }
 
   def resolveModule(org: String, module: String, revision: String) = {

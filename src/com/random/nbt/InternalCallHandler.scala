@@ -6,20 +6,21 @@ import scala.util.Failure
 import scala.util.Success
 import scala.util.Try
 import scala.io.Source
+import com.typesafe.scalalogging.LazyLogging
 
 object InternalCallHandler {
   val ivyHelper = new IvyHelper()
   def getProjectDir = Context.getString("projectDir", "currentDir")
 }
 
-class InternalCallHandler(methodName: String, callParams: Array[String]) extends FileUtils {
+class InternalCallHandler(methodName: String, callParams: Array[String]) extends FileUtils with LazyLogging {
   import InternalCallHandler._
 
   def compile() = {
     val currentDir = getProjectDir.getOrElse(".")
     val sourceDir = if (callParams.length > 0) callParams(0) else createAbsolutePath(currentDir, "src")
     val destDir = if (callParams.length > 1) callParams(1) else createAbsolutePath(currentDir, "bin")
-    println("Compile source dir: " + sourceDir)
+    //logger.info("Compile source dir: " + sourceDir)
     new ScalaCompiler().compile(sourceDir, destDir)
   }
 
@@ -62,6 +63,15 @@ class InternalCallHandler(methodName: String, callParams: Array[String]) extends
     ivyHelper.resolveModule(org, module, version)
   }
 
+  def getModuleDependenciesInfo(): Unit = {
+    val org = callParams(0)
+    val module = callParams(1)
+    val version = callParams(2)
+    val depConfiguration = callParams(3)
+    println(s"Resolving version for artifact: $org $module $version $depConfiguration")
+    ivyHelper.getModuleDependenciesInfo(org, module, version, depConfiguration) foreach (println(_))
+  }
+
   def getModuleJarFileName(): Unit = {
     val org = callParams(0)
     val module = callParams(1)
@@ -74,27 +84,13 @@ class InternalCallHandler(methodName: String, callParams: Array[String]) extends
       case Some(compileDependencies) => parseDependencies(compileDependencies.asInstanceOf[Seq[String]]) flatMap { case (org, module) =>
         ivyHelper.getLastLocalVersionFilePath(org, module) match {
           case jar@Some(s:String) => jar
-          case None => resolveJarPathUsingScalaMajorMinorVersion(org, module)
+          case None => Nil
         }
       }
       case None => Nil
     }) mkString(":")
     println("Setting dependenciesAsJarPaths: " + jarPaths)
     Context.set("dependenciesAsJarPaths", jarPaths)
-  }
-
-  def resolveJarPathUsingScalaMajorMinorVersion(org: String, module: String) = {
-    getScalaMajorMinorVersion flatMap { scalaMajorMinorVersion =>
-      println(s"Not able to resolve dependency: $org:$module, trying $org:${module}_${scalaMajorMinorVersion}")
-      ivyHelper.getLastLocalVersionFilePath(org, s"${module}_${scalaMajorMinorVersion}")
-    }
-  }
-
-  def getScalaMajorMinorVersion = {
-    Context.getString("scalaVersion") map { scalaVersion =>
-      val parts = scalaVersion.split("\\.")
-      s"${parts(0)}.${parts(1)}"
-    }
   }
 
   private def parseDependencies(rawDependencies: Seq[String]) = {
