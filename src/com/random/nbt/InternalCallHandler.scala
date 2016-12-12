@@ -79,7 +79,7 @@ class InternalCallHandler(methodName: String, callParams: Array[String]) extends
     val version = callParams(2)
     val depConfiguration = callParams(3)
     logger.info(s"Resolving version for artifact: $org $module $version $depConfiguration")
-    ivyHelper.getModuleDependenciesInfo(org, module, version, depConfiguration) foreach (println(_))
+    ivyHelper.getModuleDependenciesInfo(org, module, version, depConfiguration, false) foreach (println(_))
     true
   }
 
@@ -108,7 +108,7 @@ class InternalCallHandler(methodName: String, callParams: Array[String]) extends
     val (correctedModule, mayBeRevision) = ivyHelper.getLastLocalVersion(org, module)
     mayBeRevision match {
       case Some(revision) =>
-        val allDependencies = ivyHelper.getModuleDependenciesInfo(org, module, revision, configuration)
+        val allDependencies = ivyHelper.getModuleDependenciesInfo(org, module, revision, configuration, true)
         allDependencies flatMap { ivyNode =>
           val moduleId = ivyNode.getId.getModuleId
           ivyHelper.getLastLocalVersionFilePath(moduleId.getOrganisation, moduleId.getName)

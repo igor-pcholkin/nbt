@@ -7,24 +7,24 @@ import java.net.URL
 import com.typesafe.scalalogging.LazyLogging
 
 trait FileUtils { self: LazyLogging =>
-  def scanFilesInDir(sourceDir: String, fileFilter: String => Boolean): List[String] = {
+  def scanFilesInDir(rootDir: String, fileFilter: String => Boolean): List[String] = {
     @tailrec
-    def scanFilesInDir(addedFiles: List[String], nonProcessedDirs: List[String]): List[String] = {
+    def scanFilesInDir(foundFiles: List[String], nonProcessedDirs: List[String]): List[String] = {
       if (nonProcessedDirs.isEmpty) {
-        addedFiles
+        foundFiles
       } else {
         val sourceDir = nonProcessedDirs.head
         new File(sourceDir).list() match {
-          case null => scanFilesInDir(addedFiles, nonProcessedDirs.tail)
+          case null => scanFilesInDir(foundFiles, nonProcessedDirs.tail)
           case dirEntryNames =>
             val srcDirEntriesFullNames = dirEntryNames map (createAbsolutePath(sourceDir, _))
-            val (srcDirDirs, srcDirFiles) = srcDirEntriesFullNames.partition ( new File(_).isDirectory )
-            val scalaFiles = srcDirEntriesFullNames filter fileFilter
-            scanFilesInDir(addedFiles ++ scalaFiles, nonProcessedDirs.tail ++ srcDirDirs)
+            val (srcDirDirs, srcDirFiles) = srcDirEntriesFullNames partition ( new File(_).isDirectory )
+            val sutableFiles = srcDirEntriesFullNames filter fileFilter
+            scanFilesInDir(foundFiles ++ sutableFiles, nonProcessedDirs.tail ++ srcDirDirs)
         }
       }
     }
-    scanFilesInDir(Nil, List(sourceDir))
+    scanFilesInDir(Nil, List(rootDir))
   }
 
   def getAllDirFiles(srcDir: String) = {

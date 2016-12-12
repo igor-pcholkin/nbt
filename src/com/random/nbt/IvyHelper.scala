@@ -70,14 +70,14 @@ class IvyHelper {
     listSortedRevisions(org, module)
   }
 
-  def getModuleDependenciesInfo(org: String, module: String, revision: String, dependencyConfiguration: String) = {
+  def getModuleDependenciesInfo(org: String, module: String, revision: String, dependencyConfiguration: String, download: Boolean) = {
     val ivy = createIvy(ibiblioResolver)
 
     val ro = new ResolveOptions()
     // this seems to have no impact, if you resolve by module descriptor (in contrast to resolve by ModuleRevisionId)
     ro.setTransitive(true);
     // if set to false, nothing will be downloaded
-    ro.setDownload(false);
+    ro.setDownload(download);
 
     // 1st create an ivy module (this always(!) has a "default" configuration already)
     val md = DefaultModuleDescriptor.newDefaultInstance(
