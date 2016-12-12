@@ -28,28 +28,31 @@ class ScalaCompiler extends FileUtils with LazyLogging {
           compileUsing(sourceDir, destDir, scalaCompilerVersion)
         } else {
           logger.error(s"Error: latest scala-compiler ($scalaCompilerVersion) and scala-reflect ($scalaReflectVersion) version mismatch")
+          false
         }
-      case _ => logger.error("Error: No scala compiler or dependant libs found")
+      case _ =>
+        logger.error("Error: No scala compiler or dependant libs found")
+        false
     }
   }
 
-  def compileUsing(sourceDir: String, destDir: String, scalaVersion: String): Unit = {
+  def compileUsing(sourceDir: String, destDir: String, scalaVersion: String): Boolean = {
     val scalaCompilerJarPath = ivyHelper.getModuleJarFileName(org, scalaCompiler, scalaVersion)
     val scalaReflectJarPath = ivyHelper.getModuleJarFileName(org, scalaReflect, scalaVersion)
     val classPath = List(scalaCompilerJarPath, scalaReflectJarPath) map { jarPath =>
       new URL(s"file://$jarPath")
     }
-    val classLoader = new java.net.URLClassLoader(classPath.toArray)
+    implicit val classLoader = new java.net.URLClassLoader(classPath.toArray)
     logger.info(s"""Compile using classpath: ${classPath.mkString(":")}""")
-    compileUsing(sourceDir, destDir, classLoader)
+    compileUsing(sourceDir, destDir)
   }
 
-  def compileUsing(sourceDir: String, destDir: String, classLoader: ClassLoader) = {
+  def compileUsing(sourceDir: String, destDir: String) (implicit classLoader: ClassLoader) = {
 
     val settingsClass = classLoader.loadClass("scala.tools.nsc.Settings")
     val settingsInstance = settingsClass.getConstructor().newInstance().asInstanceOf[AnyRef]
 
-    addCompileArguments(destDir, settingsClass, settingsInstance, classLoader)
+    addCompileArguments(destDir, settingsClass, settingsInstance)
 
     val reporterClass = classLoader.loadClass("scala.tools.nsc.reporters.ConsoleReporter")
     val reporterInstance = reporterClass.getConstructor(settingsClass).newInstance(settingsInstance).asInstanceOf[AnyRef]
@@ -59,10 +62,19 @@ class ScalaCompiler extends FileUtils with LazyLogging {
     val globalContructor = globalClass.getConstructor(settingsClass, abstractReporterClass)
     val globalInstance = globalContructor.newInstance(settingsInstance, reporterInstance).asInstanceOf[AnyRef]
 
-    invokeCompileMethod(sourceDir, destDir: String, globalClass, globalInstance, classLoader)
+    invokeCompileMethod(sourceDir, destDir: String, globalClass, globalInstance)
+
+    returnCompileResult(reporterInstance, reporterClass)
   }
 
-  def addCompileArguments(destDir: String, settingsClass: Class[_], settingsInstance: AnyRef, classLoader: ClassLoader) = {
+  def returnCompileResult(reporterInstance: AnyRef, reporterClass: Class[_])(implicit classLoader: ClassLoader) = {
+    val hasErrorsMethod = reporterClass.getMethod("hasErrors")
+    val hasErrors = hasErrorsMethod.invoke(reporterInstance).asInstanceOf[Boolean]
+    !hasErrors
+  }
+
+  def addCompileArguments(destDir: String, settingsClass: Class[_], settingsInstance: AnyRef)
+    (implicit classLoader: ClassLoader) = {
     val classPath = Context.get("dependenciesAsJarPaths").getOrElse("")
     val cpArgs = s"""-classpath "$classPath:$destDir" -d $destDir"""
     logger.info(s"Passing additional dependencies for compiler: $cpArgs")
@@ -70,7 +82,8 @@ class ScalaCompiler extends FileUtils with LazyLogging {
     processArgumentStringMethod.invoke(settingsInstance, cpArgs)
   }
 
-  def invokeCompileMethod(sourceDir: String, binDir: String, globalClass: Class[_], globalInstance: AnyRef, classLoader: ClassLoader) = {
+  def invokeCompileMethod(sourceDir: String, binDir: String, globalClass: Class[_], globalInstance: AnyRef)(
+      implicit classLoader: ClassLoader) = {
     val runClass = globalInstance.getClass().getClasses.find { c =>
       c.getName.contains("Run")
     } match {

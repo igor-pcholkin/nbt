@@ -24,62 +24,71 @@ class InternalCallHandler(methodName: String, callParams: Array[String]) extends
     new ScalaCompiler().compile(sourceDir, destDir)
   }
 
-  def findMainClass(): Unit = {
+  def findMainClass(): Boolean = {
     val binDir = callParams(0)
     logger.info("Finding main class in bin dir: " + binDir)
     Context.set("mainClass", findMainClass(binDir).getOrElse(""))
+    true
   }
 
-  def findScalaLibrary(): Unit = {
+  def findScalaLibrary(): Boolean = {
     val mayBeScalaVersion = Context.getString("scalaVersion").
       orElse(ivyHelper.getLastLocalVersion("org.scala-lang", "scala-library"))
     mayBeScalaVersion match {
       case Some(scalaVersion) =>
         val scalaLibPath = ivyHelper.getModuleJarFileName("org.scala-lang", "scala-library", scalaVersion)
         Context.set("scalaLibrary", scalaLibPath)
-      case None => logger.error("No scala library is found")
+        true
+      case None =>
+        logger.error("No scala library is found")
+        false
     }
   }
 
-  def listLocalRevisions(): Unit = {
+  def listLocalRevisions(): Boolean = {
     val org = callParams(0)
     val module = callParams(1)
     logger.info(s"Searching ivy modules: $org $module")
     ivyHelper.getLocalModuleVersions(org, module) foreach (println(_))
+    true
   }
 
-  def getAvailableModuleVersions(): Unit = {
+  def getAvailableModuleVersions(): Boolean = {
     val org = callParams(0)
     val module = callParams(1)
     logger.info(s"Searching versions for artifact: $org $module")
     ivyHelper.getAvailableModuleVersions(org, module) foreach (println(_))
+    true
   }
 
-  def resolveModuleVersion(): Unit = {
+  def resolveModuleVersion(): Boolean = {
     val org = callParams(0)
     val module = callParams(1)
     val version = callParams(2)
     logger.info(s"Resolving version for artifact: $org $module $version")
     ivyHelper.resolveModule(org, module, version)
+    true
   }
 
-  def getModuleDependenciesInfo(): Unit = {
+  def getModuleDependenciesInfo(): Boolean = {
     val org = callParams(0)
     val module = callParams(1)
     val version = callParams(2)
     val depConfiguration = callParams(3)
     logger.info(s"Resolving version for artifact: $org $module $version $depConfiguration")
     ivyHelper.getModuleDependenciesInfo(org, module, version, depConfiguration) foreach (println(_))
+    true
   }
 
-  def getModuleJarFileName(): Unit = {
+  def getModuleJarFileName(): Boolean = {
     val org = callParams(0)
     val module = callParams(1)
     val version = callParams(2)
     println("Module file name: " + ivyHelper.getModuleJarFileName(org, module, version))
+    true
   }
 
-  def resolveDependenciesAsJarPaths() = {
+  def resolveDependenciesAsJarPaths(): Boolean = {
     val jarPaths = (Context.get("dependencies") match {
       case Some(compileDependencies) => parseDependencies(compileDependencies.asInstanceOf[Seq[String]]) flatMap { case (org, module) =>
         ivyHelper.getLastLocalVersionFilePath(org, module) match {
@@ -91,6 +100,7 @@ class InternalCallHandler(methodName: String, callParams: Array[String]) extends
     }) mkString(":")
     logger.info("Setting dependenciesAsJarPaths: " + jarPaths)
     Context.set("dependenciesAsJarPaths", jarPaths)
+    true
   }
 
   private def parseDependencies(rawDependencies: Seq[String]) = {
@@ -105,7 +115,7 @@ class InternalCallHandler(methodName: String, callParams: Array[String]) extends
     }
   }
 
-  def setVar() = {
+  def setVar(): Boolean = {
     val rawAssignment = callParams.mkString
     val assignment = rawAssignment.split("=")
     if (assignment.length == 2) {
@@ -113,12 +123,14 @@ class InternalCallHandler(methodName: String, callParams: Array[String]) extends
       logger.info(s"Setting var: $variable = $value")
       val value2Set = if (value.contains(",")) value.split("[,\\s]+") else value
       Context.set(variable, value2Set)
+      true
     } else {
       logger.error(s"Invalid assignment: $rawAssignment")
+      false
     }
   }
 
-  def recencyCheck() = {
+  def recencyCheck(): Boolean = {
     val srcDir = callParams(0)
     val binDir = callParams(1)
     val (updatedSrcFiles, binFiles) = getProjectDir match {
@@ -132,18 +144,23 @@ class InternalCallHandler(methodName: String, callParams: Array[String]) extends
     Context.set("updatedSrcFiles-" + srcDir, updatedSrcFiles)
     Context.set("cachedBinFiles-" + binDir, binFiles)
     logger.info(s"Setting recent files: ${updatedSrcFiles.mkString(",")}")
+    true
   }
 
-  def updateCacheWithBinEntriesAndSourceDependencies() = {
+  def updateCache(): Boolean = {
     val srcDir = callParams(0)
     val binDir = callParams(1)
-    val recentFiles =  getProjectDir match {
+    getProjectDir match {
       case Some(projectDir) =>
+        val allSrcFiles = getAllSourceFiles(srcDir)
         val allBinDirFiles = getAllDirFiles(binDir)
         val srcDependencies = getAllSrcDependencies(srcDir)
         logger.info(s"Determine source dependencies: $srcDependencies")
-        RecencyCache.refresh(Some(RecencyCache.getCachedSrcFileEntries), Some(allBinDirFiles), Some(srcDependencies))
-      case None => logger.error("no project dir set")
+        RecencyCache.refresh(allSrcFiles, allBinDirFiles, srcDependencies)
+        true
+      case None =>
+        logger.error("no project dir set")
+        false
     }
   }
 
@@ -157,7 +174,7 @@ class InternalCallHandler(methodName: String, callParams: Array[String]) extends
     }) groupBy (_._1) map { e => e._1 -> (e._2 map { kv => kv._2 }) })
   }
 
-  def getImports(srcFile: String) = {
+  private def getImports(srcFile: String) = {
     Source.fromFile(srcFile).getLines() flatMap { line =>
       val importPattern = "import ([^\\n]*)".r
       line match {
@@ -167,12 +184,14 @@ class InternalCallHandler(methodName: String, callParams: Array[String]) extends
     }
   }
 
-  def handle() = {
+  def handle(): Boolean = {
     Try {
       getClass.getMethod(methodName)
     } match {
-      case Success(method) => method.invoke(this)
-      case Failure(ex)     => logger.error(s"Error when resolving $methodName: ${ex.getMessage}")
+      case Success(method) => method.invoke(this).asInstanceOf[Boolean]
+      case Failure(ex)     =>
+        logger.error(s"Error when resolving $methodName: ${ex.getMessage}")
+        false
     }
   }
 

@@ -14,40 +14,43 @@ class PhaseExecutor extends FileUtils with LazyLogging {
     }
   }
 
-  def executeDependantPhases(phase: Phase)(implicit phases: List[Phase]) = {
+  def executeDependantPhases(phase: Phase)(implicit phases: List[Phase]): Boolean = {
     logger.info(s"Executing dependency phases: ${phase.dependsOn.mkString(",")} on phase ${phase.name}")
-    phase.dependsOn map { dependsOnPhase =>
+    val executedDependencyPhases = phase.dependsOn takeWhile { dependsOnPhase =>
       phases.find(_.name == dependsOnPhase) match {
         case Some(resolvedPhase) => execute(resolvedPhase)
-        case None => logger.error(s"No depending phase found: ${dependsOnPhase}")
+        case None =>
+          logger.error(s"No depending phase found: ${dependsOnPhase}")
+          false
       }
     }
+    executedDependencyPhases.length == phase.dependsOn.length
   }
 
-  def execute(phase: Phase)(implicit phases: List[Phase]): Unit = {
-    executeDependantPhases(phase)
-    executeInternalCalls(phase)
+  def execute(phase: Phase)(implicit phases: List[Phase]): Boolean = {
+    executeDependantPhases(phase) &&
+    executeInternalCalls(phase) &&
     executeCommmandsOfPhase(phase)
   }
 
   def executeInternalCalls(phase: Phase) = {
-    if (phase.calls.nonEmpty) {
-      phase.calls map { call =>
-        val callLine = resolveVarsIn(call)
-        if (callLine.contains("=")) {
-          new InternalCallHandler("=", Array(callLine)).setVar()
-        } else {
-          val callParams = callLine.split("[ \t]+")
-          new InternalCallHandler(callParams(0), callParams.slice(1, callParams.length)).handle()
-        }
+    val executedCalls = phase.calls.takeWhile { call =>
+      val callLine = resolveVarsIn(call)
+      if (callLine.contains("=")) {
+        new InternalCallHandler("=", Array(callLine)).setVar()
+      } else {
+        val callParams = callLine.split("[ \t]+")
+        new InternalCallHandler(callParams(0), callParams.slice(1, callParams.length)).handle()
       }
     }
+    executedCalls.length == phase.calls.length
   }
 
   def executeCommmandsOfPhase(phase: Phase) = {
-    phase.cmdLines map { cmd =>
+    val executedCommands = phase.cmdLines takeWhile { cmd =>
       executeCmdLine(cmd)
     }
+    executedCommands.length == phase.cmdLines.length
   }
 
   def executeCmdLine(cmdLine: String) = {
@@ -58,10 +61,17 @@ class PhaseExecutor extends FileUtils with LazyLogging {
     logger.info(s"Running in working dir: $workingDir")
     Try {
       Process(refinedCmdLine, new java.io.File(workingDir)).!!
-    } match {
-      case Success(output: String) if output.nonEmpty => println(output)
-      case Failure(ex) => logger.error(ex.getMessage)
-      case _ =>
+    }
+    match {
+      case Success(output: String) =>
+        if (output.nonEmpty)
+          println(output)
+        logger.debug("Executed OK with output")
+        true
+      case Failure(ex) =>
+        logger.error(ex.getMessage)
+        logger.debug("Executed with failure")
+        false
     }
   }
 

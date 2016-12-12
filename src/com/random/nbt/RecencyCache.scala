@@ -42,12 +42,9 @@ object RecencyCache extends FileUtils with LazyLogging {
     Map() ++ (entries map { parts => parts(1) -> parts(2).toLong })
   }
 
-  def refresh(allSrcFiles: Option[Seq[String]] = None, allBinFiles: Option[Seq[String]] = None,
-      allSrcDependencies: Option[Map[String, Seq[String]]] = None) = {
-    val srcFiles = allSrcFiles.getOrElse(getCachedSrcFileEntries)
-    val binFiles = allBinFiles.getOrElse(getCachedBinFileEntries)
-    val srcDependencies = allSrcDependencies.getOrElse(cachedSrcDependencies)
-    create(srcFiles, binFiles, srcDependencies)
+  def refresh(allSrcFiles: Seq[String], allBinFiles: Seq[String],
+      allSrcDependencies: Map[String, Seq[String]]) = {
+    create(allSrcFiles, allBinFiles, allSrcDependencies)
   }
 
   def getCachedSrcFileEntries = cachedSrcFileEntries.keysIterator.toList
@@ -89,13 +86,9 @@ object RecencyCache extends FileUtils with LazyLogging {
     val allSrcDirFiles = getAllSourceFiles(srcDir)
     if (exists()) {
       val newUpdatedSrcFiles = getAllSrcFilesNewerThanInCache(allSrcDirFiles)
-      if (newUpdatedSrcFiles.length > 0) {
-        refresh(Some(allSrcDirFiles))
-      }
       val dependingSrcFiles = getAllDependingSrcFiles(newUpdatedSrcFiles)
       newUpdatedSrcFiles ++ dependingSrcFiles
     } else {
-      create(allSrcDirFiles)
       allSrcDirFiles
     }
   }
