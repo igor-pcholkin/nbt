@@ -20,8 +20,8 @@ class ScalaCompiler extends FileUtils with LazyLogging {
 
   def compile(sourceDir: String, destDir: String) = {
     val scalaVersion = Context.get("scalaVersion").asInstanceOf[Option[String]]
-    val mayBeScalaCompilerVersion = scalaVersion.orElse(ivyHelper.getLastLocalVersion(org, scalaCompiler))
-    val mayBeScalaReflectVersion = scalaVersion.orElse(ivyHelper.getLastLocalVersion(org, scalaReflect))
+    val mayBeScalaCompilerVersion = scalaVersion.orElse(ivyHelper.getLastLocalVersionIgnoreModuleName(org, scalaCompiler))
+    val mayBeScalaReflectVersion = scalaVersion.orElse(ivyHelper.getLastLocalVersionIgnoreModuleName(org, scalaReflect))
     (mayBeScalaCompilerVersion, mayBeScalaReflectVersion) match {
       case (Some(scalaCompilerVersion), Some(scalaReflectVersion)) =>
         if (scalaCompilerVersion == scalaReflectVersion) {

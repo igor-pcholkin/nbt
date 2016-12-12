@@ -33,7 +33,7 @@ class InternalCallHandler(methodName: String, callParams: Array[String]) extends
 
   def findScalaLibrary(): Boolean = {
     val mayBeScalaVersion = Context.getString("scalaVersion").
-      orElse(ivyHelper.getLastLocalVersion("org.scala-lang", "scala-library"))
+      orElse(ivyHelper.getLastLocalVersionIgnoreModuleName("org.scala-lang", "scala-library"))
     mayBeScalaVersion match {
       case Some(scalaVersion) =>
         val scalaLibPath = ivyHelper.getModuleJarFileName("org.scala-lang", "scala-library", scalaVersion)
@@ -49,7 +49,9 @@ class InternalCallHandler(methodName: String, callParams: Array[String]) extends
     val org = callParams(0)
     val module = callParams(1)
     logger.info(s"Searching ivy modules: $org $module")
-    ivyHelper.getLocalModuleVersions(org, module) foreach (println(_))
+    val (correctedModule, versions) = ivyHelper.getLocalModuleVersions(org, module)
+    println("Module: $correctedModule")
+    versions foreach (println(_))
     true
   }
 
@@ -57,7 +59,8 @@ class InternalCallHandler(methodName: String, callParams: Array[String]) extends
     val org = callParams(0)
     val module = callParams(1)
     logger.info(s"Searching versions for artifact: $org $module")
-    ivyHelper.getAvailableModuleVersions(org, module) foreach (println(_))
+    val (correctedModule, versions) = ivyHelper.getAvailableModuleVersions(org, module)
+    versions foreach (println(_))
     true
   }
 
@@ -90,7 +93,7 @@ class InternalCallHandler(methodName: String, callParams: Array[String]) extends
 
   def resolveDependenciesAsJarPaths(): Boolean = {
     val jarPaths = (Context.get("dependencies") match {
-      case Some(compileDependencies) => parseDependencies(compileDependencies.asInstanceOf[Seq[String]]) flatMap { case (org, module) =>
+      case Some(compileDependencies) => parseDependencies(compileDependencies.asInstanceOf[Array[String]]) flatMap { case (org, module) =>
         ivyHelper.getLastLocalVersionFilePath(org, module) match {
           case jar@Some(s:String) => jar
           case None => Nil
@@ -120,8 +123,8 @@ class InternalCallHandler(methodName: String, callParams: Array[String]) extends
     val assignment = rawAssignment.split("=")
     if (assignment.length == 2) {
       val (variable, value) = (assignment(0).trim, assignment(1).trim)
-      logger.info(s"Setting var: $variable = $value")
       val value2Set = if (value.contains(",")) value.split("[,\\s]+") else value
+      logger.info(s"Setting var: $variable = $value2Set")
       Context.set(variable, value2Set)
       true
     } else {

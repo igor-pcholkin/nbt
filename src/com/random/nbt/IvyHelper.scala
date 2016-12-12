@@ -106,22 +106,22 @@ class IvyHelper {
   }
 
   def listSortedRevisions(org: String, module: String)(implicit ivy: Ivy)  = {
-    val nonSortedRevisions = ivy.listRevisions(org, module) match {
+    val (correctedModule, revisions) = ivy.listRevisions(org, module) match {
       case revisions =>
         if (revisions.isEmpty)
           listUsingScalaMajorMinorVersion(org, module)
         else
-          revisions
+          (module, revisions)
     }
-    sortVersionsDesc(nonSortedRevisions)
+    (correctedModule, sortVersionsDesc(revisions))
   }
 
   private def listUsingScalaMajorMinorVersion(org: String, module: String)(implicit ivy: Ivy) = {
     getScalaMajorMinorVersion match {
       case Some(scalaMajorMinorVersion) =>
         val augmentedModule = s"${module}_${scalaMajorMinorVersion}"
-        ivy.listRevisions(org, augmentedModule)
-      case None => Array[String]()
+        (augmentedModule, ivy.listRevisions(org, augmentedModule))
+      case None => (module, Array[String]())
     }
   }
 
@@ -174,12 +174,17 @@ class IvyHelper {
     }
   }
 
-  def getLastLocalVersion(org: String, module: String): Option[String] = {
-    val versions = getLocalModuleVersions(org, module)
-    versions.headOption
+  def getLastLocalVersion(org: String, module: String) = {
+    val (correctedModule, versions) = getLocalModuleVersions(org, module)
+    (correctedModule, versions.headOption)
   }
 
-  def getLastLocalVersionFilePath(org: String, module: String): Option[String] = {
-    getLastLocalVersion(org, module) map (getModuleJarFileName(org, module, _))
+  def getLastLocalVersionIgnoreModuleName(org: String, module: String) = {
+    getLastLocalVersion(org: String, module: String)._2
+  }
+
+  def getLastLocalVersionFilePath(org: String, module: String) = {
+    val (correctedModule, revisions) = getLastLocalVersion(org, module)
+    revisions map (getModuleJarFileName(org, correctedModule, _))
   }
 }
