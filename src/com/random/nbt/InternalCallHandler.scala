@@ -92,18 +92,29 @@ class InternalCallHandler(methodName: String, callParams: Array[String]) extends
   }
 
   def resolveDependenciesAsJarPaths(): Boolean = {
+    val configuration = callParams(0)
     val jarPaths = (Context.get("dependencies") match {
       case Some(compileDependencies) => parseDependencies(compileDependencies.asInstanceOf[Array[String]]) flatMap { case (org, module) =>
-        ivyHelper.getLastLocalVersionFilePath(org, module) match {
-          case jar@Some(s:String) => jar
-          case None => Nil
-        }
+        getDependencyJarsTransitive(org, module, configuration)
       }
       case None => Nil
     }) mkString(":")
     logger.info("Setting dependenciesAsJarPaths: " + jarPaths)
     Context.set("dependenciesAsJarPaths", jarPaths)
     true
+  }
+
+  private def getDependencyJarsTransitive(org: String, module: String, configuration: String) = {
+    val (correctedModule, mayBeRevision) = ivyHelper.getLastLocalVersion(org, module)
+    mayBeRevision match {
+      case Some(revision) =>
+        val allDependencies = ivyHelper.getModuleDependenciesInfo(org, module, revision, configuration)
+        allDependencies flatMap { ivyNode =>
+          val moduleId = ivyNode.getId.getModuleId
+          ivyHelper.getLastLocalVersionFilePath(moduleId.getOrganisation, moduleId.getName)
+        }
+      case None => Array[String]()
+    }
   }
 
   private def parseDependencies(rawDependencies: Seq[String]) = {

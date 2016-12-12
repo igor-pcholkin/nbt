@@ -184,7 +184,7 @@ class IvyHelper {
   }
 
   def getLastLocalVersionFilePath(org: String, module: String) = {
-    val (correctedModule, revisions) = getLastLocalVersion(org, module)
-    revisions map (getModuleJarFileName(org, correctedModule, _))
+    val (correctedModule, revision) = getLastLocalVersion(org, module)
+    revision map (getModuleJarFileName(org, correctedModule, _))
   }
 }
