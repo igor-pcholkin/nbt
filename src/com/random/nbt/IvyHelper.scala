@@ -18,11 +18,25 @@ import org.apache.ivy.plugins.resolver.DependencyResolver
 import org.apache.ivy.core.report.ResolveReport
 import org.apache.ivy.core.retrieve.RetrieveOptions
 import com.typesafe.scalalogging.LazyLogging
+import org.apache.ivy.util.DefaultMessageLogger
+import org.apache.ivy.util.Message
+import org.slf4j.LoggerFactory
 
 object IvyHelper extends FileUtils with LazyLogging {
   val localRepo = resolveLocalRepoPath()
   val cacheResolver = createCacheResolver()
   val ibiblioResolver = createBiblioResolver()
+
+  setupLogging()
+
+  def setupLogging() = {
+    val logger = LoggerFactory.getLogger("org.apache.ivy")
+    val ivyMessageLevel =
+      if (logger.isDebugEnabled()) Message.MSG_DEBUG
+      else if (logger.isInfoEnabled()) Message.MSG_INFO
+      else Message.MSG_ERR
+    Message.setDefaultLogger(new DefaultMessageLogger(ivyMessageLevel))
+  }
 
   def resolveLocalRepoPath() = {
       val homeDir = System.getenv("HOME")

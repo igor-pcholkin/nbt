@@ -1,0 +1,17 @@
+<configuration>
+
+	<appender name="STDOUT" class="ch.qos.logback.core.ConsoleAppender">
+		<encoder>
+            <pattern>%date{MM/dd HH:mm:ss} %-5level%logger{0} - %msg%n</pattern>
+		</encoder>
+	</appender>
+
+	<!-- The logger name is typically the Java/Scala package name. This configures 
+		the log level to log at for a package and its children packages. -->
+	<logger name="org.apache.ivy" level="ERROR" />
+
+	<root level="INFO">
+		<appender-ref ref="STDOUT" />
+	</root>
+
+</configuration>
