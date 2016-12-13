@@ -58,7 +58,6 @@ class PhaseExecutor extends FileUtils with LazyLogging {
     val refinedCmdLine = resolveVarsIn(cmdLine)
     logger.info(s"Executing command: $refinedCmdLine")
     val workingDir = Context.getString("projectDir", "currentDir").getOrElse(".")
-    logger.info(s"Running in working dir: $workingDir")
     Try {
       Process(refinedCmdLine, new java.io.File(workingDir)).!!
     }
@@ -66,18 +65,16 @@ class PhaseExecutor extends FileUtils with LazyLogging {
       case Success(output: String) =>
         if (output.nonEmpty)
           println(output)
-        logger.debug("Executed OK with output")
         true
       case Failure(ex) =>
         logger.error(ex.getMessage)
-        logger.debug("Executed with failure")
         false
     }
   }
 
   def resolveVarsIn(line: String) = {
     if (line.contains("$")) {
-      Context.getKeys.foldLeft(line) { (cmdLine, key) =>
+      Context.getKeys.toSeq.sortBy(-_.length).foldLeft(line) { (cmdLine, key) =>
         val value = Context.get(key) match {
           case Some(value: String) => value
           case _ => ""
