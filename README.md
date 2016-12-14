@@ -1,5 +1,4 @@
-# nbt
-aNother Build Tool for Scala
+# nbt - aNother Build Tool for Scala
 
 nbt project is started with aim to rewrite sbt "the right way".
 Namely:
