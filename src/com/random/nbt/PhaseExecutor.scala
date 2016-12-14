@@ -57,7 +57,7 @@ class PhaseExecutor extends FileUtils with LazyLogging {
     import sys.process._
     val refinedCmdLine = resolveVarsIn(cmdLine)
     logger.info(s"Executing command: $refinedCmdLine")
-    val workingDir = Context.getString("projectDir", "currentDir").getOrElse(".")
+    val workingDir = InternalCallHandler.getProjectDir.getOrElse(".")
     Try {
       Process(refinedCmdLine, new java.io.File(workingDir)).!!
     }

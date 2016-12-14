@@ -4,6 +4,7 @@ import scala.io.Source
 import java.io.FileReader
 import scala.util.parsing.combinator.JavaTokenParsers
 import com.typesafe.scalalogging.LazyLogging
+import java.io.InputStreamReader
 
 case class Phase(name: String, cmdLines: List[String], description: Option[String], dependsOn: List[String], calls: List[String])
 
@@ -62,8 +63,8 @@ class ConfigParser extends JavaTokenParsers with LazyLogging {
 
   def config = rep1(phase)
 
-  def parse(configFile: String = "conf/default.conf") = {
-    parseAll(config, new FileReader(configFile)) match {
+  def parse() = {
+    parseAll(config, new InputStreamReader(getClass().getResourceAsStream("/default.conf"))) match {
       case Success(phases, _) => phases
       case ex @ _             => logger.error(ex.toString); List[Phase]()
     }
