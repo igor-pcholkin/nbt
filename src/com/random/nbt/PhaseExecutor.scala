@@ -29,19 +29,26 @@ class PhaseExecutor extends FileUtils with LazyLogging {
 
   def execute(phase: Phase)(implicit phases: List[Phase]): Boolean = {
     executeDependantPhases(phase) &&
+    executeSets(phase) &&
     executeInternalCalls(phase) &&
     executeCommmandsOfPhase(phase)
+  }
+
+  def executeSets(phase: Phase) = {
+    val executedSets = phase.sets.takeWhile { set =>
+      val setLine = resolveVarsIn(set)
+      if (setLine.contains("=")) {
+        new InternalCallHandler("=", Array(setLine)).setVar()
+      } else false
+    }
+    executedSets.length == phase.sets.length
   }
 
   def executeInternalCalls(phase: Phase) = {
     val executedCalls = phase.calls.takeWhile { call =>
       val callLine = resolveVarsIn(call)
-      if (callLine.contains("=")) {
-        new InternalCallHandler("=", Array(callLine)).setVar()
-      } else {
-        val callParams = callLine.split("[ \t]+")
-        new InternalCallHandler(callParams(0), callParams.slice(1, callParams.length)).handle()
-      }
+      val callParams = callLine.split("[ \t]+")
+      new InternalCallHandler(callParams(0), callParams.slice(1, callParams.length)).handle()
     }
     executedCalls.length == phase.calls.length
   }

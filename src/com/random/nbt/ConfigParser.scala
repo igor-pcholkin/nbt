@@ -6,12 +6,14 @@ import scala.util.parsing.combinator.JavaTokenParsers
 import com.typesafe.scalalogging.LazyLogging
 import java.io.InputStreamReader
 
-case class Phase(name: String, cmdLines: List[String], description: Option[String], dependsOn: List[String], calls: List[String])
+case class Phase(name: String, cmdLines: List[String], description: Option[String], dependsOn: List[String], calls: List[String],
+    sets: List[String])
 
 class Attribute
 
 case class Command(cmdLine: String) extends Attribute
-case class Call(lines: String) extends Attribute
+case class Call(line: String) extends Attribute
+case class Set(line: String) extends Attribute
 case class Description(value: String) extends Attribute
 case class DependsOn(phases: List[String]) extends Attribute
 
@@ -41,14 +43,15 @@ class ConfigParser extends JavaTokenParsers with LazyLogging {
 
   def command = "command" ~ ":" ~> str ^^ { s => Command(s) }
 
-  def call = "call" ~ ":" ~> str ^^ { params =>
-    Call(params)
-  }
+  def call = "call" ~ ":" ~> str ^^ { s => Call(s) }
 
-  def attribute = (description | dependsOn | command | call) <~ eol
+  def set = "set" ~ ":" ~> str ^^ { s => Set(s) }
+
+  def attribute = (description | dependsOn | command | call | set) <~ eol
 
   def getCommandLines(attributes:List[Attribute]) = attributes collect { case cmd: Command => cmd.cmdLine }
-  def getCalls(attributes:List[Attribute]) = attributes collect { case c: Call => c.lines }
+  def getCalls(attributes:List[Attribute]) = attributes collect { case c: Call => c.line }
+  def getSets(attributes:List[Attribute]) = attributes collect { case s: Set => s.line }
   def getValueOfFirstDescription(attributes:List[Attribute]) = (attributes collect { case d: Description => d.value }).headOption
   def getFirstDependsOnList(attributes:List[Attribute]) = (attributes collect { case d: DependsOn => d.phases }).headOption.getOrElse(Nil)
 
@@ -57,8 +60,9 @@ class ConfigParser extends JavaTokenParsers with LazyLogging {
       val cmdLines = getCommandLines(attributes)
       val description = getValueOfFirstDescription(attributes)
       val dependsOn = getFirstDependsOnList(attributes)
-      val call = getCalls(attributes)
-      Phase(name, cmdLines, description, dependsOn, call)
+      val calls = getCalls(attributes)
+      val sets = getSets(attributes)
+      Phase(name, cmdLines, description, dependsOn, calls, sets)
   }
 
   def config = rep1(phase)
