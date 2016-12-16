@@ -1,0 +1,4 @@
+org.scala-lang.modules:scala-parser-combinators
+org.apache.ivy:ivy
+com.typesafe.scala-logging:scala-logging
+ch.qos.logback:logback-classic

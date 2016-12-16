@@ -5,6 +5,10 @@ import com.typesafe.scalalogging.LazyLogging
 import java.io.StringWriter
 import java.io.PrintWriter
 import scala.io.Source
+import java.io.FileNotFoundException
+import scala.util.Try
+import scala.util.Failure
+import scala.util.Success
 
 object Main extends App with FileUtils with LazyLogging {
   if (args.length > 0) {
@@ -30,8 +34,14 @@ object Main extends App with FileUtils with LazyLogging {
   }
 
   def setDependencies() = {
-    val dependencies = Source.fromFile("dependencies").getLines().toArray
-    logger.info(s"Reading dependencies from dependencies")
-    Context.set("dependencies", dependencies)
+    Try {
+      val dependencies = Source.fromFile("dependencies").getLines().toArray
+      logger.info(s"Reading dependencies from dependencies")
+      Context.set("dependencies", dependencies)
+    } match {
+      case Failure(ex:FileNotFoundException) => logger.info("No dependencies file is found")
+      case Success(_) =>
+      case err@_ => logger.error(s"Error reading project dependencies file")
+    }
   }
 }
