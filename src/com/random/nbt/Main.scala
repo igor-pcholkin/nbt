@@ -17,6 +17,7 @@ object Main extends App with FileUtils with LazyLogging {
     else {
       implicit val phases = new ConfigParser().parse()
       setDependencies()
+      readShortcuts()
       val phaseExecutor = new PhaseExecutor()
       phaseExecutor.runPhase("init")
       phaseExecutor.runPhase(args(0))
@@ -42,6 +43,22 @@ object Main extends App with FileUtils with LazyLogging {
       case Failure(ex:FileNotFoundException) => logger.info("No dependencies file is found")
       case Success(_) =>
       case err@_ => logger.error(s"Error reading project dependencies file")
+    }
+  }
+
+  def readShortcuts() = {
+    Try {
+      val shortcutsLines = Source.fromInputStream(getClass().getResourceAsStream("/shortcuts.conf")).getLines().toArray
+      val shortcuts = (shortcutsLines map { shortcutLine =>
+        val sParts = shortcutLine.split("->") map (_.trim)
+        sParts(0) -> sParts(1)
+      }).toMap
+      logger.info(s"Reading shortcuts from shortcuts.def")
+      Context.set("shortcuts", shortcuts)
+    } match {
+      case Failure(ex:FileNotFoundException) =>
+      case Success(_) =>
+      case err@_ => logger.error(s"Error reading shortcuts file")
     }
   }
 }

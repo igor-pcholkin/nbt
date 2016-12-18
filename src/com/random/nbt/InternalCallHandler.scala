@@ -94,7 +94,7 @@ class InternalCallHandler(methodName: String, callParams: Array[String]) extends
   def resolveDependenciesAsJarPaths(): Boolean = {
     val configuration = callParams(0)
     val jarPaths = (Context.get("dependencies") match {
-      case Some(compileDependencies) => parseDependencies(compileDependencies.asInstanceOf[Array[String]]) flatMap { case (org, module) =>
+      case Some(dependencies) => parseDependencies(dependencies.asInstanceOf[Array[String]]) flatMap { case (org, module) =>
         getDependencyJarsTransitive(org, module, configuration)
       }
       case None => Nil
@@ -119,13 +119,40 @@ class InternalCallHandler(methodName: String, callParams: Array[String]) extends
 
   private def parseDependencies(rawDependencies: Seq[String]) = {
     rawDependencies flatMap { d =>
-      val dParts = d.split(":")
-      if (dParts.length < 2) {
-        logger.error(s"Can't parse dependency $d")
+      parseDependency(d)
+    }
+  }
+
+  private def parseDependency(d: String) = {
+    if (d.contains(":"))
+      parseDependencyAsOrModule(d)
+    else
+      parseDependencyAsShortcut(d)
+  }
+
+  private def parseDependencyAsShortcut(sKey: String) = {
+    Context.get("shortcuts") match {
+      case Some(rawShortcuts) =>
+        val shortcuts = rawShortcuts.asInstanceOf[Map[String, String]]
+        shortcuts.get(sKey) match {
+          case Some(d) => parseDependencyAsOrModule(d)
+          case None =>
+            logger.error(s"Invalid shortcut: $sKey")
+            None
+        }
+      case None =>
+        logger.error(s"No shortcuts defined for $sKey")
         None
-      } else {
-        Some((dParts(0), dParts(1)))
-      }
+    }
+  }
+
+  private def parseDependencyAsOrModule(d: String) = {
+    val dParts = d.split(":")
+    if (dParts.length < 2) {
+      logger.error(s"Can't parse dependency $d")
+      None
+    } else {
+      Some((dParts(0), dParts(1)))
     }
   }
 
