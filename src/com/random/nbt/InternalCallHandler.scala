@@ -7,6 +7,7 @@ import scala.util.Success
 import scala.util.Try
 import scala.io.Source
 import com.typesafe.scalalogging.LazyLogging
+import Util._
 
 object InternalCallHandler {
   val ivyHelper = new IvyHelper()
@@ -210,9 +211,9 @@ class InternalCallHandler(methodName: String, callParams: Array[String]) extends
     val importsGroupedByFile = (srcFiles map { srcFile =>
       (srcFile, getImports(srcFile))
     })
-    scala.collection.mutable.Map[String, Seq[String]]() ++ (( importsGroupedByFile flatMap { case (depending, imports) =>
+    scala.collection.mutable.Map[String, Seq[String]]() ++ grouped( importsGroupedByFile flatMap { case (depending, imports) =>
       imports map { imp => (getSourceFileNameFromClassName(imp, srcDir), depending) }
-    }) groupBy (_._1) map { e => e._1 -> (e._2 map { kv => kv._2 }) })
+    })
   }
 
   private def getImports(srcFile: String) = {

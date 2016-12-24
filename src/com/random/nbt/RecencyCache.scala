@@ -5,6 +5,7 @@ import java.io.PrintWriter
 import scala.io.Source
 import scala.collection.mutable.Map
 import com.typesafe.scalalogging.LazyLogging
+import Util._
 
 object RecencyCache extends FileUtils with LazyLogging {
   val projectDir = InternalCallHandler.getProjectDir.get
@@ -24,11 +25,11 @@ object RecencyCache extends FileUtils with LazyLogging {
   }
 
   private def parseSrcDependencies(lines: List[String]): scala.collection.mutable.Map[String, Seq[String]] = {
-    Map() ++ ((lines collect {
+    Map() ++ grouped(lines collect {
       case line if line.contains("->") =>
         val depParts = line.split("->") map (_.trim)
         depParts(0) -> depParts(1)
-    }).toSeq.groupBy { e => e._1 }) map { e => (e._1, (e._2 map { kv => kv._2 })) }
+    })
   }
 
   private def parseModificationEntries(lines: List[String]) = {
