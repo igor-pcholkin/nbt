@@ -10,7 +10,7 @@ import com.typesafe.scalalogging.LazyLogging
 import Util._
 
 object InternalCallHandler {
-  val ivyHelper = new IvyHelper()
+  val ivyHelper = new IvyManager()
   def getProjectDir = Context.getString("projectDir", "currentDir")
 }
 
@@ -161,10 +161,15 @@ class InternalCallHandler(methodName: String, callParams: Array[String]) extends
     val rawAssignment = callParams.mkString
     val assignment = rawAssignment.split("=")
     if (assignment.length == 2) {
-      val (variable, value) = (assignment(0).trim, assignment(1).trim)
-      val value2Set = if (value.contains(",")) value.split("[,\\s]+") else value
-      logger.info(s"Setting var: $variable = $value2Set")
-      Context.set(variable, value2Set)
+      val (varName, value) = (assignment(0).trim, assignment(1).trim)
+      val value2Set = if (value.contains(","))
+        value.split("[,\\s]+")
+      else if (varName == "dependencies")
+        Array(value)
+      else
+        value
+      logger.info(s"Setting var: $varName = ${str(value2Set)}")
+      Context.set(varName, value2Set)
       true
     } else {
       logger.error(s"Invalid assignment: $rawAssignment")

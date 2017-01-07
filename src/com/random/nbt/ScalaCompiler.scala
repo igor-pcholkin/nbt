@@ -9,7 +9,7 @@ import scala.collection.mutable.Map
 import com.typesafe.scalalogging.LazyLogging
 
 object ScalaCompiler {
-  val ivyHelper = new IvyHelper()
+  val ivyHelper = new IvyManager()
   val org = "org.scala-lang"
   val scalaCompiler = "scala-compiler"
   val scalaReflect = "scala-reflect"
