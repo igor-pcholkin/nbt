@@ -8,6 +8,8 @@ import scala.util.Try
 import scala.io.Source
 import com.typesafe.scalalogging.LazyLogging
 import Util._
+import Shows._
+import scalaz._, Scalaz._
 
 object InternalCallHandler {
   val ivyHelper = new IvyManager()
@@ -162,13 +164,13 @@ class InternalCallHandler(methodName: String, callParams: Array[String]) extends
     val assignment = rawAssignment.split("=")
     if (assignment.length == 2) {
       val (varName, value) = (assignment(0).trim, assignment(1).trim)
-      val value2Set = if (value.contains(","))
+      val value2Set: Any = if (value.contains(","))
         value.split("[,\\s]+")
       else if (varName == "dependencies")
         Array(value)
       else
         value
-      logger.info(s"Setting var: $varName = ${str(value2Set)}")
+      logger.info(s"Setting var: $varName = ${value2Set.shows}")
       Context.set(varName, value2Set)
       true
     } else {
