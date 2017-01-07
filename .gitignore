@@ -3,6 +3,5 @@
 /bin/
 /target/
 /conf/
-/src/
 .DS_Store
 .nbt-cache
