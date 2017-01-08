@@ -7,6 +7,7 @@ import scala.annotation.tailrec
 import java.net.URL
 import scala.collection.mutable.Map
 import com.typesafe.scalalogging.LazyLogging
+import Types._
 
 object ScalaCompiler {
   val ivyHelper = new IvyManager()
@@ -19,7 +20,7 @@ class ScalaCompiler extends FileUtils with LazyLogging {
   import ScalaCompiler._
 
   def compile(sourceDir: String, destDir: String) = {
-    val scalaVersion = Context.get("scalaVersion").asInstanceOf[Option[String]]
+    val scalaVersion = Context.getString("scalaVersion")
     val mayBeScalaCompilerVersion = scalaVersion.orElse(ivyHelper.getLastLocalVersionIgnoreModuleName(org, scalaCompiler))
     val mayBeScalaReflectVersion = scalaVersion.orElse(ivyHelper.getLastLocalVersionIgnoreModuleName(org, scalaReflect))
     (mayBeScalaCompilerVersion, mayBeScalaReflectVersion) match {
@@ -113,7 +114,7 @@ class ScalaCompiler extends FileUtils with LazyLogging {
       getAllSourceFiles(srcDir)
     } else {
       Context.get("updatedSrcFiles-" + srcDir) match {
-        case Some(files: Seq[_]) => files.asInstanceOf[Seq[String]]
+        case SomeSeqString(mayBeFiles) => mayBeFiles.getOrElse(Nil)
         case _                   => getAllSourceFiles(srcDir)
       }
     }
@@ -121,8 +122,8 @@ class ScalaCompiler extends FileUtils with LazyLogging {
 
   def isMissingAnyBinaryFile(binDir: String) = {
     Context.get("cachedBinFiles-" + binDir) match {
-      case Some(files: Seq[_]) =>
-        val cachedBinFiles = files.asInstanceOf[Seq[String]]
+      case SomeSeqString(mayBeFiles) =>
+        val cachedBinFiles = mayBeFiles.getOrElse(Nil)
         cachedBinFiles.exists(!new File(_).exists())
       case _ => true
     }

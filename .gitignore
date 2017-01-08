@@ -1,6 +1,5 @@
 /bin/
 .cache-main
-/bin/
 /target/
 /conf/
 .DS_Store

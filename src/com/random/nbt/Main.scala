@@ -36,7 +36,7 @@ object Main extends App with FileUtils with LazyLogging {
 
   def setDependencies() = {
     Try {
-      val dependencies = Source.fromFile("dependencies").getLines().toArray
+      val dependencies = Source.fromFile("dependencies").getLines().toSeq
       logger.info(s"Reading dependencies from dependencies")
       Context.set("dependencies", dependencies)
     } match {

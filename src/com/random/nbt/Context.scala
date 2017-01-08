@@ -10,7 +10,12 @@ object Context {
     names.dropWhile(internal.get(_).isEmpty).headOption map (internal(_))
   }
 
-  def getString(names: String*) = get(names: _*) map (_.asInstanceOf[String])
+  def getString(names: String*) = get(names: _*) flatMap { value =>
+    value match {
+      case s: String => Some(s)
+      case _ => None
+    }
+  }
 
   def set(name: String, value: Any) = internal += (name -> value)
 

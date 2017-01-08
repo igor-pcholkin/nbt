@@ -8,8 +8,7 @@ import scala.util.Try
 import scala.io.Source
 import com.typesafe.scalalogging.LazyLogging
 import Util._
-import Shows._
-import scalaz._, Scalaz._
+import Types._
 
 object InternalCallHandler {
   val ivyHelper = new IvyManager()
@@ -97,14 +96,18 @@ class InternalCallHandler(methodName: String, callParams: Array[String]) extends
   def resolveDependenciesAsJarPaths(): Boolean = {
     val configuration = callParams(0)
     val jarPaths = (Context.get("dependencies") match {
-      case Some(dependencies) => parseDependencies(dependencies.asInstanceOf[Array[String]]) flatMap { case (org, module) =>
-        getDependencyJarsTransitive(org, module, configuration)
-      }
-      case None => Nil
+      case SomeSeqString(mayBeDependencies) => getDependenciesJarsTransitive(mayBeDependencies.getOrElse(Nil), configuration)
+      case pp@_ => Nil
     }) mkString(":")
     logger.info("Setting dependenciesAsJarPaths: " + jarPaths)
     Context.set("dependenciesAsJarPaths", jarPaths)
     true
+  }
+
+  private def getDependenciesJarsTransitive(dependencies: Seq[String], configuration: String) = {
+    parseDependencies(dependencies) flatMap { case (org, module) =>
+        getDependencyJarsTransitive(org, module, configuration)
+      }
   }
 
   private def getDependencyJarsTransitive(org: String, module: String, configuration: String) = {
@@ -135,8 +138,8 @@ class InternalCallHandler(methodName: String, callParams: Array[String]) extends
 
   private def parseDependencyAsShortcut(sKey: String) = {
     Context.get("shortcuts") match {
-      case Some(rawShortcuts) =>
-        val shortcuts = rawShortcuts.asInstanceOf[Map[String, String]]
+      case SomeMapString(rawShortcuts) =>
+        val shortcuts = rawShortcuts.getOrElse(Map.empty)
         shortcuts.get(sKey) match {
           case Some(d) => parseDependencyAsOrModule(d)
           case None =>
@@ -165,12 +168,12 @@ class InternalCallHandler(methodName: String, callParams: Array[String]) extends
     if (assignment.length == 2) {
       val (varName, value) = (assignment(0).trim, assignment(1).trim)
       val value2Set: Any = if (value.contains(","))
-        value.split("[,\\s]+")
+        value.split("[,\\s]+").toSeq
       else if (varName == "dependencies")
-        Array(value)
+        Seq(value)
       else
         value
-      logger.info(s"Setting var: $varName = ${value2Set.shows}")
+      logger.info(s"Setting var: $varName = ${value2Set}")
       Context.set(varName, value2Set)
       true
     } else {
