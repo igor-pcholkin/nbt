@@ -21,6 +21,7 @@ import com.typesafe.scalalogging.LazyLogging
 import org.apache.ivy.util.DefaultMessageLogger
 import org.apache.ivy.util.Message
 import org.slf4j.LoggerFactory
+import org.apache.ivy.core.module.descriptor.Configuration
 
 object IvyManager extends FileUtils with LazyLogging {
   val localRepo = resolveLocalRepoPath()
@@ -146,7 +147,7 @@ class IvyManager {
     }
   }
 
-  def resolveModule(org: String, module: String, revision: String, configuration: String) = {
+  def resolveModule(org: String, module: String, revision: String, masterConfig: String, depConfig: String) = {
     val ivy = createIvy(ibiblioResolver)
 
     val ro = new ResolveOptions()
@@ -168,10 +169,40 @@ class IvyManager {
     // map to master to just get the code jar. See generated ivy module xmls from maven repo
     // on how configurations are mapped into ivy. Or check
     // e.g. http://lightguard-jp.blogspot.de/2009/04/ivy-configurations-when-pulling-from.html
-    dd.addDependencyConfiguration("default", configuration)
+    dd.addDependencyConfiguration(masterConfig, depConfig)
     md.addDependency(dd)
 
     ivy.resolve(md, ro)
+  }
+
+  def resolveModuleSources(org: String, module: String, revision: String) = {
+    val ivy = createIvy(ibiblioResolver)
+
+    val ro = new ResolveOptions()
+    // this seems to have no impact, if you resolve by module descriptor (in contrast to resolve by ModuleRevisionId)
+    ro.setTransitive(true);
+    // if set to false, nothing will be downloaded
+    ro.setDownload(true);
+
+    // 1st create an ivy module (this always(!) has a "default" configuration already)
+    val md = DefaultModuleDescriptor.newDefaultInstance(
+        ModuleRevisionId.newInstance(org, module+"-envelope", revision)
+    )
+    md.addConfiguration(new Configuration("sources"));
+
+    val ri = ModuleRevisionId.newInstance(org, module, revision)
+
+    // don't go transitive here, if you want the single artifact
+    val dd = new DefaultDependencyDescriptor(md, ri, false, false, true)
+
+    // map to master to just get the code jar. See generated ivy module xmls from maven repo
+    // on how configurations are mapped into ivy. Or check
+    // e.g. http://lightguard-jp.blogspot.de/2009/04/ivy-configurations-when-pulling-from.html
+    dd.addDependencyConfiguration("sources", "sources")
+    md.addDependency(dd)
+
+    ivy.resolve(md, ro)
+
   }
 
   def getModuleJarFileName(org: String, module: String, revision: String) = {
