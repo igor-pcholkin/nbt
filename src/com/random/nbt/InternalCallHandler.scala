@@ -70,8 +70,10 @@ class InternalCallHandler(methodName: String, callParams: Array[String]) extends
     val org = callParams(0)
     val module = callParams(1)
     val version = callParams(2)
-    logger.info(s"Resolving version for artifact: $org $module $version")
-    ivyHelper.resolveModule(org, module, version)
+    val configuration = callParams(3)
+    logger.info(s"Resolving version for artifact: $org $module $version $configuration")
+    ivyHelper.resolveModule(org, module, version, "master")
+    ivyHelper.resolveModule(org, module, version, configuration)
     true
   }
 

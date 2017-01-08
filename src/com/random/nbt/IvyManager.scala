@@ -146,7 +146,7 @@ class IvyManager {
     }
   }
 
-  def resolveModule(org: String, module: String, revision: String) = {
+  def resolveModule(org: String, module: String, revision: String, configuration: String) = {
     val ivy = createIvy(ibiblioResolver)
 
     val ro = new ResolveOptions()
@@ -163,12 +163,12 @@ class IvyManager {
     val ri = ModuleRevisionId.newInstance(org, module, revision)
 
     // don't go transitive here, if you want the single artifact
-    val dd = new DefaultDependencyDescriptor(md, ri, false, false, false)
+    val dd = new DefaultDependencyDescriptor(md, ri, false, false, true)
 
     // map to master to just get the code jar. See generated ivy module xmls from maven repo
     // on how configurations are mapped into ivy. Or check
     // e.g. http://lightguard-jp.blogspot.de/2009/04/ivy-configurations-when-pulling-from.html
-    dd.addDependencyConfiguration("default", "master")
+    dd.addDependencyConfiguration("default", configuration)
     md.addDependency(dd)
 
     ivy.resolve(md, ro)
