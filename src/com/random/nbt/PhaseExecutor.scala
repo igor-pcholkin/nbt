@@ -6,7 +6,7 @@ import scala.util.Failure
 import scala.util.Success
 import com.typesafe.scalalogging.LazyLogging
 
-class PhaseExecutor extends FileUtils with LazyLogging {
+object PhaseExecutor extends FileUtils with LazyLogging {
   def runPhase(phaseName: String)(implicit phases: List[Phase]) = {
     phases.find(_.name == phaseName) match {
       case Some(phase) => execute(phase)

@@ -18,7 +18,7 @@ object Main extends App with FileUtils with LazyLogging {
       implicit val phases = new ConfigParser().parse()
       setDependencies()
       readShortcuts()
-      val phaseExecutor = new PhaseExecutor()
+      val phaseExecutor = PhaseExecutor
       phaseExecutor.runPhase("init")
       phaseExecutor.runPhase(args(0))
     }
