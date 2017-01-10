@@ -248,7 +248,7 @@ class InternalCallHandler(methodName: String, callParams: Array[String]) extends
   }
 
   def createEclipseProject() = {
-    EclipseManager.createProject(Context.getString("projectName").getOrElse("test"))
+    EclipseManager.createProject()
   }
 
   def handle(): Boolean = {

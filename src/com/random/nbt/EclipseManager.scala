@@ -4,9 +4,11 @@ import java.io.PrintWriter
 import java.io.FileWriter
 
 object EclipseManager {
-  def createProject(projectName: String) = {
+  def createProject() = {
+    val projectName = Context.getString("projectName").getOrElse("test")
+    val dependencies = Context.getString("dependenciesAsJarPaths").getOrElse("").split(":")
     writeProject(projectName)
-    writeClassPath()
+    writeClassPath(dependencies)
     mkDir("src")
     mkDir("bin")
   }
@@ -33,13 +35,18 @@ object EclipseManager {
     )
   }
 
-  def writeClassPath() = {
+  def writeClassPath(dependencies: Seq[String]) = {
     writeXML(".classpath",
     <classpath>
        <classpathentry kind="src" path="src"/>
        <classpathentry kind="src" path="conf"/>
        <classpathentry kind="con" path="org.eclipse.jdt.launching.JRE_CONTAINER"/>
        <classpathentry kind="con" path="org.scala-ide.sdt.launching.SCALA_CONTAINER"/>
+       {
+         dependencies.map { dep =>
+           <classpathentry kind="lib" path={dep}/>
+         }
+       }
        <classpathentry kind="output" path="bin"/>
     </classpath>)
   }
@@ -47,7 +54,7 @@ object EclipseManager {
   def writeXML(fileName: String, xml: Elem) = {
     val pw = new PrintWriter(new FileWriter(fileName))
     pw.println("""<?xml version="1.0" encoding="UTF-8"?>""")
-    val printer = new scala.xml.PrettyPrinter(80, 2)
+    val printer = new scala.xml.PrettyPrinter(120, 2)
     pw.println(printer.format(xml))
     pw.close()
   }
