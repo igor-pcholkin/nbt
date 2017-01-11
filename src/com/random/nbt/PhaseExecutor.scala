@@ -6,7 +6,7 @@ import scala.util.Failure
 import scala.util.Success
 import com.typesafe.scalalogging.LazyLogging
 
-object PhaseExecutor extends FileUtils with LazyLogging {
+class PhaseExecutor(implicit context: Context) extends LazyLogging {
   def runPhase(phaseName: String)(implicit phases: List[Phase]) = {
     phases.find(_.name == phaseName) match {
       case Some(phase) => execute(phase)
@@ -36,7 +36,7 @@ object PhaseExecutor extends FileUtils with LazyLogging {
 
   def executeSets(phase: Phase) = {
     val executedSets = phase.sets.takeWhile { set =>
-      val setLine = resolveVarsIn(set)
+      val setLine = context.resolveVarsIn(set)
       if (setLine.contains("=")) {
         new InternalCallHandler("=", Array(setLine)).setVar()
       } else false
@@ -46,7 +46,7 @@ object PhaseExecutor extends FileUtils with LazyLogging {
 
   def executeInternalCalls(phase: Phase) = {
     val executedCalls = phase.calls.takeWhile { call =>
-      val callLine = resolveVarsIn(call)
+      val callLine = context.resolveVarsIn(call)
       val callParams = callLine.split("[ \t]+")
       new InternalCallHandler(callParams(0), callParams.slice(1, callParams.length)).handle()
     }
@@ -55,42 +55,9 @@ object PhaseExecutor extends FileUtils with LazyLogging {
 
   def executeCommmandsOfPhase(phase: Phase) = {
     val executedCommands = phase.cmdLines takeWhile { cmd =>
-      executeCmdLine(cmd)
+      CommandLineExecutor.execute(cmd)
     }
     executedCommands.length == phase.cmdLines.length
-  }
-
-  def executeCmdLine(cmdLine: String) = {
-    import sys.process._
-    val refinedCmdLine = resolveVarsIn(cmdLine)
-    logger.info(s"Executing command: $refinedCmdLine")
-    val workingDir = InternalCallHandler.getProjectDir.getOrElse(".")
-    Try {
-      Process(refinedCmdLine, new java.io.File(workingDir)).!!
-    }
-    match {
-      case Success(output: String) =>
-        if (output.nonEmpty)
-          println(output)
-        true
-      case Failure(ex) =>
-        logger.error(ex.getMessage)
-        false
-    }
-  }
-
-  def resolveVarsIn(line: String) = {
-    if (line.contains("$")) {
-      Context.getKeys.toSeq.sortBy(-_.length).foldLeft(line) { (cmdLine, key) =>
-        val value = Context.get(key) match {
-          case Some(value: String) => value
-          case _ => ""
-        }
-        cmdLine.replace("$" + s"$key", value)
-      }
-    } else {
-      line
-    }
   }
 
 }

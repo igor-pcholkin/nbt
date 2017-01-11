@@ -12,5 +12,6 @@
 	<classpathentry kind="lib" path="lib/logback-core-1.1.7.jar"/>
 	<classpathentry kind="lib" path="lib/shapeless_2.11-2.3.2.jar"/>
 	<classpathentry kind="lib" path="lib/scala-xml_2.11-1.0.5.jar"/>
+	<classpathentry kind="lib" path="lib/scalaz-core_2.11-7.1.0.jar"/>
 	<classpathentry kind="output" path="bin"/>
 </classpath>

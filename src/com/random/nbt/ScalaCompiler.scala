@@ -10,19 +10,20 @@ import com.typesafe.scalalogging.LazyLogging
 import Types._
 
 object ScalaCompiler {
-  val ivyHelper = new IvyManager()
   val org = "org.scala-lang"
   val scalaCompiler = "scala-compiler"
   val scalaReflect = "scala-reflect"
 }
 
-class ScalaCompiler extends FileUtils with LazyLogging {
+class ScalaCompiler(implicit context: Context) extends FileUtils with LazyLogging {
   import ScalaCompiler._
 
+  val ivyManager = new IvyManager()
+
   def compile(sourceDir: String, destDir: String) = {
-    val scalaVersion = Context.getString("scalaVersion")
-    val mayBeScalaCompilerVersion = scalaVersion.orElse(ivyHelper.getLastLocalVersionIgnoreModuleName(org, scalaCompiler))
-    val mayBeScalaReflectVersion = scalaVersion.orElse(ivyHelper.getLastLocalVersionIgnoreModuleName(org, scalaReflect))
+    val scalaVersion = context.getString("scalaVersion")
+    val mayBeScalaCompilerVersion = scalaVersion.orElse(ivyManager.getLastLocalVersionIgnoreModuleName(org, scalaCompiler))
+    val mayBeScalaReflectVersion = scalaVersion.orElse(ivyManager.getLastLocalVersionIgnoreModuleName(org, scalaReflect))
     (mayBeScalaCompilerVersion, mayBeScalaReflectVersion) match {
       case (Some(scalaCompilerVersion), Some(scalaReflectVersion)) =>
         if (scalaCompilerVersion == scalaReflectVersion) {
@@ -38,8 +39,8 @@ class ScalaCompiler extends FileUtils with LazyLogging {
   }
 
   def compileUsing(sourceDir: String, destDir: String, scalaVersion: String): Boolean = {
-    val scalaCompilerJarPath = ivyHelper.getModuleJarFileName(org, scalaCompiler, scalaVersion)
-    val scalaReflectJarPath = ivyHelper.getModuleJarFileName(org, scalaReflect, scalaVersion)
+    val scalaCompilerJarPath = ivyManager.getModuleJarFileName(org, scalaCompiler, scalaVersion)
+    val scalaReflectJarPath = ivyManager.getModuleJarFileName(org, scalaReflect, scalaVersion)
     val classPath = List(scalaCompilerJarPath, scalaReflectJarPath) map { jarPath =>
       new URL(s"file://$jarPath")
     }
@@ -76,7 +77,7 @@ class ScalaCompiler extends FileUtils with LazyLogging {
 
   def addCompileArguments(destDir: String, settingsClass: Class[_], settingsInstance: AnyRef)
     (implicit classLoader: ClassLoader) = {
-    val classPath = Context.get("dependenciesAsJarPaths").getOrElse("")
+    val classPath = context.get("dependenciesAsJarPaths").getOrElse("")
     val cpArgs = s"""-classpath "$classPath:$destDir" -d $destDir"""
     logger.info(s"Passing additional dependencies for compiler: $cpArgs")
     val processArgumentStringMethod = settingsClass.getMethod("processArgumentString", classLoader.loadClass("java.lang.String"))
@@ -113,7 +114,7 @@ class ScalaCompiler extends FileUtils with LazyLogging {
       logger.info("Some binaries are missing: (re)compiling everything")
       getAllSourceFiles(srcDir)
     } else {
-      Context.get("updatedSrcFiles-" + srcDir) match {
+      context.get("updatedSrcFiles-" + srcDir) match {
         case SomeSeqString(mayBeFiles) => mayBeFiles.getOrElse(Nil)
         case _                   => getAllSourceFiles(srcDir)
       }
@@ -121,7 +122,7 @@ class ScalaCompiler extends FileUtils with LazyLogging {
   }
 
   def isMissingAnyBinaryFile(binDir: String) = {
-    Context.get("cachedBinFiles-" + binDir) match {
+    context.get("cachedBinFiles-" + binDir) match {
       case SomeSeqString(mayBeFiles) =>
         val cachedBinFiles = mayBeFiles.getOrElse(Nil)
         cachedBinFiles.exists(!new File(_).exists())

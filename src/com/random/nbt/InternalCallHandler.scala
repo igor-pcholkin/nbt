@@ -10,13 +10,9 @@ import com.typesafe.scalalogging.LazyLogging
 import Util._
 import Types._
 
-object InternalCallHandler {
+class InternalCallHandler(methodName: String, callParams: Array[String])(implicit context: Context) extends FileUtils with LazyLogging {
   val ivyManager = new IvyManager()
-  def getProjectDir = Context.getString("projectDir", "currentDir")
-}
-
-class InternalCallHandler(methodName: String, callParams: Array[String]) extends FileUtils with LazyLogging {
-  import InternalCallHandler._
+  def getProjectDir = context.getString("projectDir", "currentDir")
 
   def compile() = {
     val currentDir = getProjectDir.getOrElse(".")
@@ -29,17 +25,23 @@ class InternalCallHandler(methodName: String, callParams: Array[String]) extends
   def findMainClass(): Boolean = {
     val binDir = callParams(0)
     logger.info("Finding main class in bin dir: " + binDir)
-    Context.set("mainClass", findMainClass(binDir).getOrElse(""))
+    val mainClass = findMainClass(binDir) match {
+      case scalaz.Success(mainClass) => mainClass
+      case scalaz.Failure(err) =>
+        logger.error(err)
+        ""
+    }
+    context.set("mainClass", mainClass)
     true
   }
 
   def findScalaLibrary(): Boolean = {
-    val mayBeScalaVersion = Context.getString("scalaVersion").
+    val mayBeScalaVersion = context.getString("scalaVersion").
       orElse(ivyManager.getLastLocalVersionIgnoreModuleName("org.scala-lang", "scala-library"))
     mayBeScalaVersion match {
       case Some(scalaVersion) =>
         val scalaLibPath = ivyManager.getModuleJarFileName("org.scala-lang", "scala-library", scalaVersion)
-        Context.set("scalaLibrary", scalaLibPath)
+        context.set("scalaLibrary", scalaLibPath)
         true
       case None =>
         logger.error("No scala library is found")
@@ -106,12 +108,12 @@ class InternalCallHandler(methodName: String, callParams: Array[String]) extends
 
   def resolveDependenciesAsJarPaths(): Boolean = {
     val configuration = callParams(0)
-    val jarPaths = (Context.get("dependencies") match {
+    val jarPaths = (context.get("dependencies") match {
       case SomeSeqString(mayBeDependencies) => getDependenciesJarsTransitive(mayBeDependencies.getOrElse(Nil), configuration)
       case pp@_ => Nil
     }) mkString(":")
     logger.info("Setting dependenciesAsJarPaths: " + jarPaths)
-    Context.set("dependenciesAsJarPaths", jarPaths)
+    context.set("dependenciesAsJarPaths", jarPaths)
     true
   }
 
@@ -148,7 +150,7 @@ class InternalCallHandler(methodName: String, callParams: Array[String]) extends
   }
 
   private def parseDependencyAsShortcut(sKey: String) = {
-    Context.get("shortcuts") match {
+    context.get("shortcuts") match {
       case SomeMapString(rawShortcuts) =>
         val shortcuts = rawShortcuts.getOrElse(Map.empty)
         shortcuts.get(sKey) match {
@@ -185,7 +187,7 @@ class InternalCallHandler(methodName: String, callParams: Array[String]) extends
       else
         value
       logger.info(s"Setting var: $varName = ${value2Set}")
-      Context.set(varName, value2Set)
+      context.set(varName, value2Set)
       true
     } else {
       logger.error(s"Invalid assignment: $rawAssignment")
@@ -198,14 +200,15 @@ class InternalCallHandler(methodName: String, callParams: Array[String]) extends
     val binDir = callParams(1)
     val (updatedSrcFiles, binFiles) = getProjectDir match {
       case Some(projectDir) =>
-        val updatedSrcFiles = RecencyCache.getUpdatedAndDependingSrcFiles(srcDir)
-        (updatedSrcFiles, RecencyCache.getCachedBinFileEntries)
+        val recencyCache = new RecencyCache()
+        val updatedSrcFiles = recencyCache.getUpdatedAndDependingSrcFiles(srcDir)
+        (updatedSrcFiles, recencyCache.getCachedBinFileEntries)
       case None =>
         logger.error("no project dir set")
         (getAllSourceFiles(srcDir), Nil)
     }
-    Context.set("updatedSrcFiles-" + srcDir, updatedSrcFiles)
-    Context.set("cachedBinFiles-" + binDir, binFiles)
+    context.set("updatedSrcFiles-" + srcDir, updatedSrcFiles)
+    context.set("cachedBinFiles-" + binDir, binFiles)
     logger.info(s"Setting recent files: ${updatedSrcFiles.mkString(",")}")
     true
   }
@@ -219,7 +222,7 @@ class InternalCallHandler(methodName: String, callParams: Array[String]) extends
         val allBinDirFiles = getAllDirFiles(binDir)
         val srcDependencies = getAllSrcDependencies(srcDir)
         logger.info(s"Determine source dependencies: $srcDependencies")
-        RecencyCache.refresh(allSrcFiles, allBinDirFiles, srcDependencies)
+        new RecencyCache().refresh(allSrcFiles, allBinDirFiles, srcDependencies)
         true
       case None =>
         logger.error("no project dir set")
@@ -248,7 +251,7 @@ class InternalCallHandler(methodName: String, callParams: Array[String]) extends
   }
 
   def createEclipseProject() = {
-    EclipseManager.createProject()
+    new EclipseManager().createProject()
   }
 
   def handle(): Boolean = {

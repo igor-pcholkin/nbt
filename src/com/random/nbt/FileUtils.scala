@@ -5,8 +5,9 @@ import java.io.File
 import java.lang.reflect.Modifier
 import java.net.URL
 import com.typesafe.scalalogging.LazyLogging
+import scalaz._, Scalaz._
 
-trait FileUtils { self: LazyLogging =>
+trait FileUtils {
   def scanFilesInDir(rootDir: String, fileFilter: String => Boolean): List[String] = {
     @tailrec
     def scanFilesInDir(foundFiles: List[String], nonProcessedDirs: List[String]): List[String] = {
@@ -47,46 +48,46 @@ trait FileUtils { self: LazyLogging =>
     sourceDir + (if (sourceDir.endsWith(File.separator)) "" else File.separator) + fileName
   }
 
-  def findMainClass(binDir: String): Option[String] = {
+  def findMainClass(binDir: String): Validation[String, String] = {
 
     val validBinDir = if (binDir.endsWith(File.separator)) binDir else binDir + File.separator
     implicit val classLoader = new java.net.URLClassLoader(Array(
         new URL(s"file://$validBinDir")
         ))
 
-    val filesWithMainMethod = scanFilesInDir(binDir, fileName => fileName.endsWith(".class") && containsMain(fileName, binDir))
+    val filesWithMainMethod = scanFilesInDir(binDir, fileName => fileName.endsWith(".class") &&
+        containsMain(fileName, binDir) == Success(true))
     if (filesWithMainMethod.length == 0) {
-      logger.error("No files with main class found")
-      None
+      "No files with main class found".failure
     }
     else if (filesWithMainMethod.length > 1) {
-      logger.error("There are many classes with a main method:")
-      filesWithMainMethod foreach (logger.error(_))
-      None
-    } else
-      Some(getClassNameFromFileName(filesWithMainMethod.head, binDir))
-  }
-
-  def containsMain(fileName: String, binDir: String)(implicit classLoader: ClassLoader) = {
-    val className = getClassNameFromFileName(fileName, binDir)
-    try {
-      val fileClass = classLoader.loadClass(className)
-      fileClass.getMethods.find { m => m.getName == "main" && Modifier.isStatic(m.getModifiers) }.nonEmpty
-    }
-    catch {
-      case t: Throwable =>
-        println(s"Load of $className failed: " + t.getMessage)
-        false
+      filesWithMainMethod.foldLeft(new StringBuilder("There are many classes with a main method:")) { (errors, file) =>
+        errors.append(file)
+      }.toString.failure
+    } else {
+      getClassNameFromFileName(filesWithMainMethod.head, binDir)
     }
   }
 
-  def getClassNameFromFileName(fileName: String, binDir: String) = {
+  def containsMain(fileName: String, binDir: String)(implicit classLoader: ClassLoader): Validation[String, Boolean] = {
+    getClassNameFromFileName(fileName, binDir) flatMap { className =>
+      try {
+        val fileClass = classLoader.loadClass(className)
+        (fileClass.getMethods.find { m => m.getName == "main" && Modifier.isStatic(m.getModifiers) }.nonEmpty).success
+      }
+      catch {
+        case t: Throwable =>
+          (s"Load of $className failed: " + t.getMessage).failure
+      }
+    }
+  }
+
+  def getClassNameFromFileName(fileName: String, binDir: String): Validation[String, String] = {
     val fileNamePattern = s"$binDir${File.separator}?([^\\.]+)\\.class".r
     fileName match {
       case fileNamePattern(className) =>
-        className.replace(String.valueOf(File.separator), ".")
-      case _ => logger.error("class file match")
-      ""
+        className.replace(String.valueOf(File.separator), ".").success
+      case _ => "class file match".failure
     }
   }
 

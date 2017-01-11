@@ -3,7 +3,7 @@ package com.random.nbt
 import java.io.File
 import scala.collection.mutable.Map
 
-object Context {
+class Context {
   val internal = create
 
   def get(names: String*): Option[Any] = {
@@ -29,4 +29,20 @@ object Context {
         "projectName" -> projectName
         )
   }
+
+  def resolveVarsIn(line: String) = {
+    if (line.contains("$")) {
+      getKeys.toSeq.sortBy(-_.length).foldLeft(line) { (cmdLine, key) =>
+        val value = get(key) match {
+          case Some(value: String) => value
+          case _ => ""
+        }
+        cmdLine.replace("$" + s"$key", value)
+      }
+    } else {
+      line
+    }
+  }
+
+
 }

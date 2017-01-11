@@ -7,8 +7,8 @@ import scala.collection.mutable.Map
 import com.typesafe.scalalogging.LazyLogging
 import Util._
 
-object RecencyCache extends FileUtils with LazyLogging {
-  val projectDir = InternalCallHandler.getProjectDir.get
+class RecencyCache(implicit context: Context) extends FileUtils with LazyLogging {
+  val projectDir = context.getString("projectDir", "currentDir").getOrElse("")
   val cacheFile = new File(createAbsolutePath(projectDir, ".nbt-cache"))
 
   val (cachedSrcFileEntries, cachedBinFileEntries, cachedSrcDependencies) =

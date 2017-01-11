@@ -11,6 +11,8 @@ import scala.util.Failure
 import scala.util.Success
 
 object Main extends App with FileUtils with LazyLogging {
+  implicit val context = new Context
+
   if (args.length > 0) {
     if (args(0) == "create")
       createDependenciesFile(args.slice(1, args.length).mkString("").split(","))
@@ -18,7 +20,7 @@ object Main extends App with FileUtils with LazyLogging {
       implicit val phases = new ConfigParser().parse()
       setDependencies()
       readShortcuts()
-      val phaseExecutor = PhaseExecutor
+      val phaseExecutor = new PhaseExecutor()
       phaseExecutor.runPhase("init")
       phaseExecutor.runPhase(args(0))
     }
@@ -38,7 +40,7 @@ object Main extends App with FileUtils with LazyLogging {
     Try {
       val dependencies = Source.fromFile("dependencies").getLines().toSeq
       logger.info(s"Reading dependencies from dependencies")
-      Context.set("dependencies", dependencies)
+      context.set("dependencies", dependencies)
     } match {
       case Failure(ex:FileNotFoundException) => logger.info("No dependencies file is found")
       case Success(_) =>
@@ -54,7 +56,7 @@ object Main extends App with FileUtils with LazyLogging {
         sParts(0) -> sParts(1)
       }).toMap
       logger.info(s"Reading shortcuts from shortcuts.def")
-      Context.set("shortcuts", shortcuts)
+      context.set("shortcuts", shortcuts)
     } match {
       case Failure(ex:FileNotFoundException) =>
       case Success(_) =>

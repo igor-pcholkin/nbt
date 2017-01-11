@@ -3,10 +3,10 @@ import scala.xml._
 import java.io.PrintWriter
 import java.io.FileWriter
 
-object EclipseManager {
+class EclipseManager(implicit context: Context) {
   def createProject() = {
-    val projectName = Context.getString("projectName").getOrElse("test")
-    val dependencies = Context.getString("dependenciesAsJarPaths").getOrElse("").split(":")
+    val projectName = context.getString("projectName").getOrElse("test")
+    val dependencies = context.getString("dependenciesAsJarPaths").getOrElse("").split(":")
     writeProject(projectName)
     writeClassPath(dependencies)
     mkDir("src")
@@ -60,6 +60,6 @@ object EclipseManager {
   }
 
   def mkDir(dir: String) = {
-    PhaseExecutor.executeCmdLine(s"mkdir -p $dir")
+    CommandLineExecutor.execute(s"mkdir -p $dir")
   }
 }

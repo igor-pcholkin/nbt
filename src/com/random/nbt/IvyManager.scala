@@ -23,7 +23,7 @@ import org.apache.ivy.util.Message
 import org.slf4j.LoggerFactory
 import org.apache.ivy.core.module.descriptor.Configuration
 
-object IvyManager extends FileUtils with LazyLogging {
+class IvyManager()(implicit context: Context) extends LazyLogging {
   val localRepo = resolveLocalRepoPath()
   val cacheResolver = createCacheResolver()
   val ibiblioResolver = createBiblioResolver()
@@ -65,10 +65,6 @@ object IvyManager extends FileUtils with LazyLogging {
     br.setName("central")
     br
   }
-}
-
-class IvyManager {
-  import IvyManager._
 
   private def createIvy(resolver: DependencyResolver) = {
     val settings = new IvySettings
@@ -141,7 +137,7 @@ class IvyManager {
   }
 
   private def getScalaMajorMinorVersion = {
-    Context.getString("scalaVersion") map { scalaVersion =>
+    context.getString("scalaVersion") map { scalaVersion =>
       val parts = scalaVersion.split("\\.")
       s"${parts(0)}.${parts(1)}"
     }
