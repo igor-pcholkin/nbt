@@ -5,13 +5,14 @@ import java.io.File
 import org.scalatest._
 
 class InternalCallHandlerTest extends FlatSpec with MustMatchers with BeforeAndAfter {
+  implicit val context = new Context
   val projectName = "Test"
   val workingDir = s"/tmp/$projectName"
 
   "InternalCallHandler" should "create Eclipse project" in {
     implicit val context = new Context
     context.set("project", projectName)
-    context.set("dependencies", "scalaz-core.jar")
+    context.set(Context.DEPENDENCIES, "scalaz-core.jar")
     context.set("currentDir", workingDir)
     CommandLineExecutor.execute(s"mkdir $workingDir")
     new InternalCallHandler("createEclipseProject").handle()
@@ -21,8 +22,11 @@ class InternalCallHandlerTest extends FlatSpec with MustMatchers with BeforeAndA
     new File(s"$workingDir/bin").exists() mustBe true
   }
 
+  before {
+    CommandLineExecutor.execute(s"rm -rf $workingDir")
+  }
+
   after {
-    implicit val context = new Context
     CommandLineExecutor.execute(s"rm -rf $workingDir")
   }
 }

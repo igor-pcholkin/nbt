@@ -17,15 +17,52 @@ object Main extends App with FileUtils with LazyLogging {
     if (args(0) == "create")
       createDependenciesFile(args.slice(1, args.length).mkString("").split(","))
     else {
-      implicit val phases = new ConfigParser().parse()
-      setDependencies()
-      readShortcuts()
-      val phaseExecutor = new PhaseExecutor()
-      phaseExecutor.runPhase("init")
-      phaseExecutor.runPhase(args(0))
+      val (phaseName, vars) = parseArgs(args)
+      addVarsToContext(vars)
+      runConfiguredPhase(phaseName)
     }
   } else {
     println("Usage: nbt <build phase>| create")
+  }
+
+  def addVarsToContext(vars: Map[String, String]) = {
+    vars.foreach { case (varName, value) =>
+      context.setRaw(varName, value)
+    }
+  }
+
+  def runConfiguredPhase(phaseName: String) = {
+    implicit val phases = new ConfigParser().parse()
+    setDependencies()
+    readShortcuts()
+    val phaseExecutor = new PhaseExecutor()
+    phaseExecutor.runPhase("init")
+    phaseExecutor.runPhase(phaseName)
+  }
+
+  def parseArgs(args: Array[String]): (String, Map[String, String]) = {
+    if (args(0).startsWith("-")) {
+      (args.last, parseSwitches(args.slice(0, args.length - 1)))
+    } else {
+      (args(0), parseSwitches(args.slice(1, args.length)))
+    }
+  }
+
+  def parseSwitches(switches: Array[String]) = {
+    val emptyMap = Map[String, String]()
+    if (switches.isEmpty)
+      emptyMap
+    else {
+      if (switches(0) == "-vars") {
+        val paramList = switches.slice(1, switches.length)
+        (paramList map { param =>
+          val parts = param.split("=")
+          (parts(0), parts(1))
+        }).toMap
+      } else {
+        emptyMap
+      }
+    }
   }
 
   def createDependenciesFile(dependencies: Array[String]) = {
@@ -40,7 +77,7 @@ object Main extends App with FileUtils with LazyLogging {
     Try {
       val dependencies = Source.fromFile("dependencies").getLines().toSeq
       logger.info(s"Reading dependencies from dependencies")
-      context.set("dependencies", dependencies)
+      context.set(Context.DEPENDENCIES, dependencies)
     } match {
       case Failure(ex:FileNotFoundException) => logger.info("No dependencies file is found")
       case Success(_) =>

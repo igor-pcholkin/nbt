@@ -4,3 +4,5 @@
 /conf/
 .DS_Store
 .nbt-cache
+.cache-tests
+

@@ -44,7 +44,7 @@ class EclipseManager(implicit context: Context) {
        <classpathentry kind="con" path="org.eclipse.jdt.launching.JRE_CONTAINER"/>
        <classpathentry kind="con" path="org.scala-ide.sdt.launching.SCALA_CONTAINER"/>
        {
-         dependencies.map { dep =>
+         dependencies.collect { case dep if dep.nonEmpty =>
            <classpathentry kind="lib" path={dep}/>
          }
        }

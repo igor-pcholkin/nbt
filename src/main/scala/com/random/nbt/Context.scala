@@ -3,6 +3,10 @@ package com.random.nbt
 import java.io.File
 import scala.collection.mutable.Map
 
+object Context {
+  val DEPENDENCIES = "deps"
+}
+
 class Context {
   val internal = create
 
@@ -18,6 +22,16 @@ class Context {
   }
 
   def set(name: String, value: Any) = internal += (name -> value)
+
+  def setRaw(varName: String, rawValue: String) = {
+    val value: Any = if (rawValue.contains(","))
+      rawValue.split("[,\\s]+").toSeq
+    else if (varName == Context.DEPENDENCIES)
+      Seq(rawValue)
+    else
+      rawValue
+    set(varName, value)
+  }
 
   def getKeys() = internal.keys
 

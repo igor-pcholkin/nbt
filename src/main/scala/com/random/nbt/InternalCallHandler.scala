@@ -108,7 +108,7 @@ class InternalCallHandler(methodName: String, callParams: Array[String] = Array(
 
   def resolveDependenciesAsJarPaths(): Boolean = {
     val configuration = callParams(0)
-    val jarPaths = (context.get("dependencies") match {
+    val jarPaths = (context.get(Context.DEPENDENCIES) match {
       case SomeSeqString(mayBeDependencies) => getDependenciesJarsTransitive(mayBeDependencies.getOrElse(Nil), configuration)
       case pp@_ => Nil
     }) mkString(":")
@@ -180,14 +180,7 @@ class InternalCallHandler(methodName: String, callParams: Array[String] = Array(
     val assignment = rawAssignment.split("=")
     if (assignment.length == 2) {
       val (varName, value) = (assignment(0).trim, assignment(1).trim)
-      val value2Set: Any = if (value.contains(","))
-        value.split("[,\\s]+").toSeq
-      else if (varName == "dependencies")
-        Seq(value)
-      else
-        value
-      logger.info(s"Setting var: $varName = ${value2Set}")
-      context.set(varName, value2Set)
+      context.setRaw(varName, value)
       true
     } else {
       logger.error(s"Invalid assignment: $rawAssignment")
