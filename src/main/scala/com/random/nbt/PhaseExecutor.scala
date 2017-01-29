@@ -6,7 +6,7 @@ import scala.util.Failure
 import scala.util.Success
 import com.typesafe.scalalogging.LazyLogging
 
-class PhaseExecutor(implicit context: Context) extends LazyLogging {
+class PhaseExecutor(implicit context: Context, ivyManager: IvyManager) extends LazyLogging {
   def runPhase(phaseName: String)(implicit phases: List[Phase]) = {
     phases.find(_.name == phaseName) match {
       case Some(phase) => execute(phase)
@@ -48,7 +48,7 @@ class PhaseExecutor(implicit context: Context) extends LazyLogging {
     val executedCalls = phase.calls.takeWhile { call =>
       val callLine = context.resolveVarsIn(call)
       val callParams = callLine.split("[ \t]+")
-      new InternalCallHandler(callParams(0), callParams.slice(1, callParams.length)).handle()
+      new InternalCallHandler(callParams(0), callParams.slice(1, callParams.length)).apply()
     }
     executedCalls.length == phase.calls.length
   }

@@ -12,6 +12,7 @@ import scala.util.Success
 
 object Main extends App with FileUtils with LazyLogging {
   implicit val context = new Context
+  implicit val ivyManager = new IvyManager
 
   if (args.length > 0) {
     if (args(0) == "create")

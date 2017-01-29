@@ -10,8 +10,9 @@ import com.typesafe.scalalogging.LazyLogging
 import Util._
 import Types._
 
-class InternalCallHandler(methodName: String, callParams: Array[String] = Array())(implicit context: Context) extends FileUtils with LazyLogging {
-  val ivyManager = new IvyManager()
+class InternalCallHandler(methodName: String, callParams: Array[String] = Array())
+  (implicit context: Context, ivyManager: IvyManager) extends FileUtils with LazyLogging {
+
   def getProjectDir = context.getString("projectDir", "currentDir")
 
   def compile() = {
@@ -247,7 +248,7 @@ class InternalCallHandler(methodName: String, callParams: Array[String] = Array(
     new EclipseManager().createProject()
   }
 
-  def handle(): Boolean = {
+  def apply(): Boolean = {
     Try {
       getClass.getMethod(methodName)
     } match {
