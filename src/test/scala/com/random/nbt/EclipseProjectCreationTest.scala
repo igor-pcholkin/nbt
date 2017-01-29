@@ -12,11 +12,12 @@ class EclipseProjectCreationTest extends FlatSpec with MustMatchers with BeforeA
 
   "InternalCallHandler" should "create Eclipse project" in {
     implicit val context = new Context
+    implicit val ivyManager = new IvyManager
     context.set("projectName", projectName)
     context.set("dependenciesAsJarPaths", "scalaz-core.jar")
     context.set("currentDir", workingDir)
     CommandLineExecutor.execute(s"mkdir $workingDir")
-    new InternalCallHandler("createEclipseProject").handle()
+    new InternalCallHandler("createEclipseProject").apply()
     contains(s"$workingDir/.project", "<name>Test</name>") mustBe true
     contains(s"$workingDir/.classpath", "scalaz-core.jar") mustBe true
     new File(s"$workingDir/src").exists() mustBe true
