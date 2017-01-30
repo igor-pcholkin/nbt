@@ -9,6 +9,7 @@ import scala.io.Source
 import com.typesafe.scalalogging.LazyLogging
 import Util._
 import Types._
+import com.random.nbt.model.ScalaVersion
 
 class InternalCallHandler(methodName: String, callParams: Array[String] = Array())
   (implicit context: Context, ivyManager: IvyManager) extends FileUtils with LazyLogging {
@@ -38,7 +39,7 @@ class InternalCallHandler(methodName: String, callParams: Array[String] = Array(
 
   def findScalaLibrary(): Boolean = {
     val mayBeScalaVersion = context.getString("scalaVersion").
-      orElse(ivyManager.getLastLocalVersionIgnoreModuleName("org.scala-lang", "scala-library"))
+      orElse(ivyManager.getLastLocalVersionIgnoreModuleName("org.scala-lang", "scala-library", None))
     mayBeScalaVersion match {
       case Some(scalaVersion) =>
         val scalaLibPath = ivyManager.getModuleJarFileName("org.scala-lang", "scala-library", scalaVersion)
@@ -54,7 +55,7 @@ class InternalCallHandler(methodName: String, callParams: Array[String] = Array(
     val org = callParams(0)
     val module = callParams(1)
     logger.info(s"Searching ivy modules: $org $module")
-    val (correctedModule, versions) = ivyManager.getLocalModuleVersions(org, module)
+    val (correctedModule, versions) = ivyManager.getLocalModuleVersions(org, module, getScalaVersion)
     println("Module: $correctedModule")
     versions foreach (println(_))
     true
@@ -64,9 +65,16 @@ class InternalCallHandler(methodName: String, callParams: Array[String] = Array(
     val org = callParams(0)
     val module = callParams(1)
     logger.info(s"Searching versions for artifact: $org $module")
-    val (correctedModule, versions) = ivyManager.getAvailableModuleVersions(org, module)
+    val (correctedModule, versions) = ivyManager.getAvailableModuleVersions(org, module, getScalaVersion)
     versions foreach (println(_))
     true
+  }
+
+  private def getScalaVersion = {
+    context.getString("scalaVersion") map { scalaVersion =>
+      val parts = scalaVersion.split("\\.")
+      ScalaVersion(parts(0), parts(1))
+    }
   }
 
   def resolveModuleVersion(): Boolean = {
@@ -125,13 +133,14 @@ class InternalCallHandler(methodName: String, callParams: Array[String] = Array(
   }
 
   private def getDependencyJarsTransitive(org: String, module: String, configuration: String) = {
-    val (correctedModule, mayBeRevision) = ivyManager.getLastLocalVersion(org, module)
+    val scalaVersion = getScalaVersion
+    val (correctedModule, mayBeRevision) = ivyManager.getLastLocalVersion(org, module, scalaVersion)
     mayBeRevision match {
       case Some(revision) =>
         val allDependencies = ivyManager.getModuleDependenciesInfo(org, module, revision, configuration, true)
         allDependencies flatMap { ivyNode =>
           val moduleId = ivyNode.getId.getModuleId
-          ivyManager.getLastLocalVersionFilePath(moduleId.getOrganisation, moduleId.getName)
+          ivyManager.getLastLocalVersionFilePath(moduleId.getOrganisation, moduleId.getName, scalaVersion)
         }
       case None => Array[String]()
     }

@@ -22,8 +22,9 @@ import org.apache.ivy.util.DefaultMessageLogger
 import org.apache.ivy.util.Message
 import org.slf4j.LoggerFactory
 import org.apache.ivy.core.module.descriptor.Configuration
+import com.random.nbt.model.ScalaVersion
 
-class IvyManager()(implicit context: Context) extends LazyLogging {
+class IvyManager() extends LazyLogging {
   val localRepo = resolveLocalRepoPath()
   val cacheResolver = createCacheResolver()
   val ibiblioResolver = createBiblioResolver()
@@ -39,7 +40,7 @@ class IvyManager()(implicit context: Context) extends LazyLogging {
     Message.setDefaultLogger(new DefaultMessageLogger(ivyMessageLevel))
   }
 
-  def resolveLocalRepoPath() = {
+  private def resolveLocalRepoPath() = {
       val homeDir = System.getenv("HOME")
       val repoCandidate = new File(s"$homeDir/.ivy2/cache")
       if (repoCandidate.exists()) {
@@ -51,14 +52,14 @@ class IvyManager()(implicit context: Context) extends LazyLogging {
       }
   }
 
-  def createCacheResolver() = {
+  private def createCacheResolver() = {
     val cr = new CacheResolver()
     cr.addIvyPattern(localRepo + "/[organisation]/[module]/ivy-[revision].xml")
     cr.addArtifactPattern(localRepo + "/[organisation]/[module]/[type]s/[artifact]-[revision].[ext]")
     cr
   }
 
-  def createBiblioResolver() = {
+  private def createBiblioResolver() = {
     val br = new IBiblioResolver()
     br.setM2compatible(true)
     br.setUsepoms(true)
@@ -75,10 +76,10 @@ class IvyManager()(implicit context: Context) extends LazyLogging {
     Ivy.newInstance(settings)
   }
 
-  def getLocalModuleVersions(org: String, module: String) = {
+  def getLocalModuleVersions(org: String, module: String, scalaVersion: Option[ScalaVersion]) = {
     implicit val ivy = createIvy(cacheResolver)
 
-    listSortedRevisions(org, module)
+    listSortedRevisions(org, module, scalaVersion)
   }
 
   def getModuleDependenciesInfo(org: String, module: String, revision: String, dependencyConfiguration: String, download: Boolean) = {
@@ -110,36 +111,29 @@ class IvyManager()(implicit context: Context) extends LazyLogging {
 
   }
 
-  def getAvailableModuleVersions(org: String, module: String) = {
+  def getAvailableModuleVersions(org: String, module: String, scalaVersion: Option[ScalaVersion]) = {
     implicit val ivy = createIvy(ibiblioResolver)
 
-    listSortedRevisions(org, module)
+    listSortedRevisions(org, module, scalaVersion)
   }
 
-  def listSortedRevisions(org: String, module: String)(implicit ivy: Ivy)  = {
+  def listSortedRevisions(org: String, module: String, scalaVersion: Option[ScalaVersion])(implicit ivy: Ivy)  = {
     val (correctedModule, revisions) = ivy.listRevisions(org, module) match {
       case revisions =>
         if (revisions.isEmpty)
-          listUsingScalaMajorMinorVersion(org, module)
+          listUsingScalaMajorMinorVersion(org, module, scalaVersion)
         else
           (module, revisions)
     }
     (correctedModule, sortVersionsDesc(revisions))
   }
 
-  private def listUsingScalaMajorMinorVersion(org: String, module: String)(implicit ivy: Ivy) = {
-    getScalaMajorMinorVersion match {
+  private def listUsingScalaMajorMinorVersion(org: String, module: String, scalaVersion: Option[ScalaVersion])(implicit ivy: Ivy) = {
+    scalaVersion match {
       case Some(scalaMajorMinorVersion) =>
         val augmentedModule = s"${module}_${scalaMajorMinorVersion}"
         (augmentedModule, ivy.listRevisions(org, augmentedModule))
       case None => (module, Array[String]())
-    }
-  }
-
-  private def getScalaMajorMinorVersion = {
-    context.getString("scalaVersion") map { scalaVersion =>
-      val parts = scalaVersion.split("\\.")
-      s"${parts(0)}.${parts(1)}"
     }
   }
 
@@ -215,17 +209,17 @@ class IvyManager()(implicit context: Context) extends LazyLogging {
     }
   }
 
-  def getLastLocalVersion(org: String, module: String) = {
-    val (correctedModule, versions) = getLocalModuleVersions(org, module)
+  def getLastLocalVersion(org: String, module: String, scalaVersion: Option[ScalaVersion]) = {
+    val (correctedModule, versions) = getLocalModuleVersions(org, module, scalaVersion)
     (correctedModule, versions.headOption)
   }
 
-  def getLastLocalVersionIgnoreModuleName(org: String, module: String) = {
-    getLastLocalVersion(org: String, module: String)._2
+  def getLastLocalVersionIgnoreModuleName(org: String, module: String, scalaVersion: Option[ScalaVersion]) = {
+    getLastLocalVersion(org: String, module: String, scalaVersion)._2
   }
 
-  def getLastLocalVersionFilePath(org: String, module: String) = {
-    val (correctedModule, revision) = getLastLocalVersion(org, module)
+  def getLastLocalVersionFilePath(org: String, module: String, scalaVersion: Option[ScalaVersion]) = {
+    val (correctedModule, revision) = getLastLocalVersion(org, module, scalaVersion)
     revision map (getModuleJarFileName(org, correctedModule, _))
   }
 }

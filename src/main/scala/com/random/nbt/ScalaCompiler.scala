@@ -22,8 +22,8 @@ class ScalaCompiler(implicit context: Context) extends FileUtils with LazyLoggin
 
   def compile(sourceDir: String, destDir: String) = {
     val scalaVersion = context.getString("scalaVersion")
-    val mayBeScalaCompilerVersion = scalaVersion.orElse(ivyManager.getLastLocalVersionIgnoreModuleName(org, scalaCompiler))
-    val mayBeScalaReflectVersion = scalaVersion.orElse(ivyManager.getLastLocalVersionIgnoreModuleName(org, scalaReflect))
+    val mayBeScalaCompilerVersion = scalaVersion.orElse(ivyManager.getLastLocalVersionIgnoreModuleName(org, scalaCompiler, None))
+    val mayBeScalaReflectVersion = scalaVersion.orElse(ivyManager.getLastLocalVersionIgnoreModuleName(org, scalaReflect, None))
     (mayBeScalaCompilerVersion, mayBeScalaReflectVersion) match {
       case (Some(scalaCompilerVersion), Some(scalaReflectVersion)) =>
         if (scalaCompilerVersion == scalaReflectVersion) {
